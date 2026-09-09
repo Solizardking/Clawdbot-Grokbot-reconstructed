@@ -28,7 +28,7 @@
   "send_email": [
     {
       "name": "EMAIL",
-      "allowed_sender_addresses": ["clawd@solgpt.us"]
+      "allowed_sender_addresses": ["clawd@solgpt.us", "noreply@clawdbot.com"]
     }
   ],
   "triggers": {
