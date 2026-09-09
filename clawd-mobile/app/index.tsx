@@ -70,7 +70,7 @@ export default function HomeScreen() {
     [models, setModels] = useState<Model[]>([]),
     [model, setModel] = useState<Model | null>(null)
   const [market, setMarket] = useState<Market | null>(null),
-    [mint, setMint] = useState(SOL),
+    [mint, setMint] = useState(CLAWD_MINT),
     [messages, setMessages] = useState<ChatMessage[]>([]),
     [prompt, setPrompt] = useState('')
   const [busy, setBusy] = useState<string | null>(null),

@@ -69,9 +69,9 @@ it('rejects a price response for another mint or an untrusted source', () => {
 })
 it('keeps service URLs in endpoints constants and never ships provider API key fields', async () => {
   const { SITE_ORIGIN, GATEWAY_ORIGIN, CLAWD_MINT } = await import('../constants/endpoints')
-  expect(SITE_ORIGIN.startsWith('https://')).toBe(true)
+  expect(SITE_ORIGIN).toBe('https://clawdbot.party')
   expect(GATEWAY_ORIGIN.startsWith('https://')).toBe(true)
-  expect(CLAWD_MINT).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+  expect(CLAWD_MINT).toBe('3NHMeZPXXZVgArbgE6hJU3fq72fR9UsgbmH9zFvQiGC1')
   const source = readFileSync(new URL('../constants/endpoints.ts', import.meta.url), 'utf8')
   expect(source).not.toMatch(/\bsk-/)
   expect(source).not.toMatch(/API_KEY|OPENROUTER|XAI_API|HELIUS_API|BROWSER_USE/)
