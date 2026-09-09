@@ -8,6 +8,15 @@ MCP traffic, and returns short-lived Connect Links to the local app.
 The desktop never receives the project key. Authorization links are returned
 only on demand and are never persisted in chat messages.
 
+Current Worker (account `7640372571bf2d69ed5d58a6a6d8929e`):
+
+- URL: `https://clawdbot-composio.mynameisjeffspicoli.workers.dev`
+- Health: `GET /health` → `{ "service": "clawdbot-composio", "ready": true }`
+- D1: `clawdbot-composio` (`cc1d4eac-209e-4a84-a2be-4117c6ee97e4`), migration `0001_installations.sql` applied
+
+`COMPOSIO_API_KEY` is a Wrangler secret, not a Git file. Desktop builds that
+should use this broker set `OMB_COMPOSIO_BROKER_URL` to the URL above.
+
 Deployment for this repository (npm toolchain from the reconstruction root):
 
 1. `npm install --prefix clawd/cloudflare/composio-broker`

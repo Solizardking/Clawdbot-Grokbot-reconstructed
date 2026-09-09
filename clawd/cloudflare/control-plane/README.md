@@ -142,42 +142,32 @@ npx wrangler dev --config clawd/cloudflare/control-plane/wrangler.jsonc
 
 Do not commit `.dev.vars`.
 
-## Production blockers
+## Production
 
-The checked-in Wrangler file is intentionally non-deployable production
-scaffolding. No remote resource was created or changed while preparing it.
-Before a production deployment, an operator must:
+Current Worker (account `7640372571bf2d69ed5d58a6a6d8929e`):
 
-1. Choose and route an HTTPS hostname, then replace `BETTER_AUTH_URL`. The
-   Worker has `workers_dev` disabled and no production route in this PR.
-2. Generate a strong production `BETTER_AUTH_SECRET` and add it with Wrangler's
-   interactive secret command. Add `CLOUDFLARE_API_TOKEN` the same way. The
-   checked-in `secrets.required` names validate local configuration and generate
-   binding types; they do not contain or upload values.
-3. Create the D1 database, replace the all-zero `database_id`, review the pinned
-   migrations, and apply them to that database.
-4. Complete Cloudflare Email Sending domain onboarding, replace the placeholder
-   sender in both `EMAIL_FROM` and `allowed_sender_addresses`, and grant the
-   deployment identity access to the binding. The Cloudflare session used while
-   preparing this code could not list Email Sending (`2036 Unauthorized`), so no
-   domain or binding activation was attempted.
-5. Create a least-privilege Cloudflare API token scoped to the selected account
-   and zone. It needs a Cloudflare Tunnel/`cloudflared` connector **Write**
-   permission plus DNS **Read** and **Write** for that zone. Set
-   `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID`, and add the token through
-   `wrangler secret put CLOUDFLARE_API_TOKEN`. Never put the token in `vars`,
-   `.dev.vars.example`, logs, or CI output.
-6. Set `COMPANION_HOST_SUFFIX` to the certificate-covered DNS suffix where
-   opaque `c-*` records may be created. The configured zone must contain that
-   suffix. This change does not create the zone, certificate, or any remote
-   tunnel/DNS resources during build or tests.
-7. Replace `ALLOWED_ORIGINS` with a comma-separated allow-list of exact HTTPS
-   application origins. Wildcards are deliberately unsupported.
-8. Deploy the Worker and verify that `GET <BETTER_AUTH_URL>/healthz` returns
-   exactly `{ "ok": true, "service": "clawdbot-control-plane" }` over
-   HTTPS before shipping the desktop build. Electron probes this endpoint and
-   keeps new hosted onboarding hidden until it is healthy; an already signed-in
-   user remains visible so cleanup and recovery are not stranded.
+- URL: `https://clawdbot-control-plane.mynameisjeffspicoli.workers.dev`
+- Health: `GET /healthz` → `{ "ok": true, "service": "clawdbot-control-plane" }`
+- D1: `clawdbot-control-plane` (`01091f48-e38c-400a-8cd9-0c9c10b3ceef`), migrations `0001`–`0005` applied
+- Companion DNS suffix/zone: `clawdcompute.us` / `7e4c6582bb9709669cd0f97e5185243c`
+- Allowed origin: `https://app.solgpt.us`
+- Email sender binding: `clawd@solgpt.us`
+- Cron: `*/5 * * * *`
+
+Secrets `BETTER_AUTH_SECRET` and `CLOUDFLARE_API_TOKEN` are set with Wrangler;
+they are not in Git. Copy `.dev.vars.example` to `.dev.vars` for local work.
+
+To redeploy:
+
+```sh
+npm run migrate:remote --prefix clawd/cloudflare/control-plane
+npm run deploy --prefix clawd/cloudflare/control-plane
+```
+
+A custom hostname (for example `accounts.clawdbot.com` or `auth.solgpt.us`)
+still needs DNS on this Cloudflare account. Until then, Electron hosted
+onboarding should use the `workers.dev` URL above. OTP email delivery also
+needs the sender domain verified for Email Sending.
 
 The control-plane API token is never handed to a desktop. A desktop receives
 only its tunnel connector token, which can run that one remotely managed tunnel.

@@ -7,7 +7,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "vars": {
-    "BETTER_AUTH_URL": "https://clawdbot-control-plane.jeffspicoli.workers.dev",
+    "BETTER_AUTH_URL": "https://clawdbot-control-plane.mynameisjeffspicoli.workers.dev",
     "EMAIL_FROM": "clawd@solgpt.us",
     "ALLOWED_ORIGINS": "https://app.solgpt.us",
     "CLOUDFLARE_ACCOUNT_ID": "7640372571bf2d69ed5d58a6a6d8929e",
