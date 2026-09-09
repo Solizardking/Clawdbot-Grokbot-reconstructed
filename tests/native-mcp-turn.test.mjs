@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {build} from 'esbuild';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createRequire} from 'node:module';
+import {ensureNodeTreeSitterRuntime} from '../scripts/build-tree-sitter-node.mjs';
+
+test('native turn MCP projection reaches the discovery and invocation tools without enabling absent resources',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'native-mcp-turn-'));
+  t.after(()=>rm(dir,{recursive:true,force:true}));
+  const outfile=join(dir,'turn.cjs');
+  const previousDeps=process.env.SAND_TREE_SITTER_NODE_DEPS;
+  process.env.SAND_TREE_SITTER_NODE_DEPS=await ensureNodeTreeSitterRuntime();
+  t.after(()=>{if(previousDeps===undefined) delete process.env.SAND_TREE_SITTER_NODE_DEPS; else process.env.SAND_TREE_SITTER_NODE_DEPS=previousDeps;});
+  await build({stdin:{contents:'export {createTurnAgentToolsHandoff} from "./source/host/runner/turn-agent-composition.ts"; export {createContext} from "./source/packages/context/core.ts";',resolveDir:process.cwd(),loader:'ts'},outfile,bundle:true,mainFields:['module','main'],platform:'node',format:'cjs',logLevel:'silent',define:{'import.meta.url':'__moduleUrl'},banner:{js:'const __moduleUrl = require("node:url").pathToFileURL(__filename).href;'}});
+  const {createTurnAgentToolsHandoff,createContext}=createRequire(import.meta.url)(outfile);
+  const host={isSubagentRunner:false,isSharedRoomRunner:false,isBoxScopedSubagent:false,isComputerUseSubagent:false,isBrowserUseSubagent:false,isSystemPromptOverridden:false,remoteBoxHasDesktop:false,getConversationId:()=> 'test',getRemoteBoxAvailable:()=>false,cloudAgentsDisabledByTeam:()=>true,spotlightEnabled:()=>false,factories:{}};
+  const props={resourceAccessor:{get:()=>undefined}};
+  const empty=createTurnAgentToolsHandoff({toolHost:host,turn:{autoReviewModes:{mcp:'off'}}}).toolsGenerator(props);
+  assert.ok(!empty.getAllTools().some(tool=>tool.name==='CallMcpTool'));
+  const mcp={mcpMeta:{getMcpTools:()=>[{name:'hosted_services_status',toolName:'hosted_services_status',providerIdentifier:'hosted-services',description:'Configured grants',inputSchema:{type:'object',properties:{}}}],callOptions:{allowInteractiveMcpAuth:true,validateMcpToolDescriptors:true}}};
+  const withMcp=createTurnAgentToolsHandoff({toolHost:host,turn:{autoReviewModes:{mcp:'off'},mcp}}).toolsGenerator(props);
+  const names=withMcp.getAllTools().map(tool=>tool.name);
+  assert.ok(names.includes('GetMcpTools'));
+  assert.ok(names.includes('CallMcpTool'));
+  const discovery=withMcp.getAllTools().find(tool=>tool.name==='GetMcpTools');
+  const result=await discovery.execute(createContext(),{emitPartialToolCall:()=>{},executeToolCall:async(ctx,call,id,run)=>run(ctx)},(async function*(){yield JSON.stringify({server:'hosted-services',toolName:'hosted_services_status'});})(),{toolCallId:'discover-hosted'});
+  assert.equal(result.result.case,'success');
+  assert.match(result.result.value.content,/hosted_services_status/);
+});

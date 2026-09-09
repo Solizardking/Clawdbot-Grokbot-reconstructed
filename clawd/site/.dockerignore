@@ -1,0 +1,15 @@
+node_modules
+.next
+.env*
+*.tsbuildinfo
+.git
+tests
+.convex
+
+**/.env*
+**/*.env
+**/*.env.*
+**/.dev.vars*
+**/*.pem
+**/*.key
+**/*-keypair.json

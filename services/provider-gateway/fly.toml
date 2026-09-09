@@ -1,0 +1,32 @@
+app = "grok-provider-gateway-8bit"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  BROWSER_USE_MODEL = "grok-4.5"
+  GATEWAY_DATABASE_PATH = "/data/gateway/state.sqlite"
+
+[[mounts]]
+  source = "gateway_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

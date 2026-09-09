@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {parseHostedAccessFile} from './lib/hosted-access-file.mjs';
+import {runHostedChat} from '../clawd/server/drivers/hosted-chat.ts';
+
+const access=parseHostedAccessFile(await readFile(new URL('../.cache/gateway-owner/client.env',import.meta.url),'utf8'));
+const model='nvidia/nemotron-3-super-120b-a12b';
+const baseUrl=access.url+'/nvidia/v1';
+const headers={authorization:`Bearer ${access.token}`,'content-type':'application/json'};
+const call=(path,body,auth=true)=>fetch(access.url+path,{method:body?'POST':'GET',redirect:'error',signal:AbortSignal.timeout(120000),headers:auth?headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+assert.equal((await call('/nvidia/v1/models',null,false)).status,401);
+const catalog=await call('/nvidia/v1/models');assert.equal(catalog.status,200);
+assert.ok((await catalog.json()).data.some(row=>row.id===model));
+const body={model,max_tokens:128,messages:[{role:'user',content:'Reply with only CLAWD_NVIDIA_GATEWAY_READY.'}]};
+assert.equal((await call('/nvidia/v1/chat/completions',{...body,model:'ungranted'})).status,400);
+assert.equal((await call('/openrouter/v1/chat/completions',body)).status,403);
+const plain=await call('/nvidia/v1/chat/completions',{...body,stream:false});assert.equal(plain.status,200);
+const completion=await plain.json();
+assert.match(completion.choices?.[0]?.message?.content??'',/CLAWD_NVIDIA_GATEWAY_READY/);
+assert.equal(completion.choices[0].finish_reason,'stop');
+console.log(JSON.stringify({catalog:true,anonymousDenied:true,ungrantedModelDenied:true,crossProviderDenied:true,nonStreamingChat:true}));
+const events=[];let streamedChars=0;
+const result=await runHostedChat({baseUrl,key:access.token,model,web:true,messages:[{role:'user',content:'Use tavily_search exactly once for official Solana documentation with max_results 1. Return the source URL from the result and NVIDIA_SEARCH_READY.'}],signal:AbortSignal.timeout(150000),onDelta:(text,kind)=>{if(kind==='assistant_text')streamedChars+=text.length;},onTool:(name,state)=>{events.push({name,state});console.log(JSON.stringify({tool:name,state}));}});
+assert.ok(events.some(event=>event.name==='tavily_search'&&event.state==='done'));
+assert.ok(!events.some(event=>event.state==='error'));
+assert.match(result.text,/NVIDIA_SEARCH_READY/);assert.match(result.text,/https:\/\//);assert.ok(streamedChars>0);
+console.log(JSON.stringify({streamingChat:true,hostedSearch:true,answer:result.text,usage:result.usage}));

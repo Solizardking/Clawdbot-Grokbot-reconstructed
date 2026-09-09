@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="420" viewBox="0 0 1100 420" role="img" aria-labelledby="clawd-map-title clawd-map-desc">
+  <title id="clawd-map-title">Clawd Bot documentation and source map</title>
+  <desc id="clawd-map-desc">Animated map of the standalone Clawd Bot repository: app sources, docs, companion, and publication checks.</desc>
+  <defs>
+    <linearGradient id="cmap-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#1d1433"/>
+    </linearGradient>
+    <linearGradient id="cmap-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#3ee6b0"/>
+    </linearGradient>
+  </defs>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; fill: #f4efff; }
+    .muted { fill: #9d97b8; }
+    .box { fill: #171b31; stroke: #6f628e; }
+    .core { fill: #1d1736; stroke: #a58aff; stroke-width: 1.6; }
+    .route { fill: none; stroke: url(#cmap-line); stroke-width: 2; stroke-dasharray: 6 10; animation: flow 4s linear infinite; }
+    .pulse { fill: #72edc3; animation: pulse 2.8s ease-in-out infinite; }
+    @keyframes flow { to { stroke-dashoffset: -64; } }
+    @keyframes pulse { 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) { .route, .pulse { animation: none; } }
+  </style>
+  <rect width="1100" height="420" rx="22" fill="url(#cmap-bg)"/>
+  <text x="40" y="40" font-size="12" letter-spacing="3" class="muted">CLAWD BOT SOURCE MAP</text>
+  <text x="40" y="78" font-size="28" font-weight="700">Solizardking / clawd-bots</text>
+  <text x="40" y="104" font-size="14" class="muted">Standalone npm workspace · desktop, companion, iOS, docs</text>
+  <path class="route" d="M250 210 H420 V150 H610"/>
+  <path class="route" d="M420 210 H610"/>
+  <path class="route" d="M420 210 V270 H610"/>
+  <path class="route" d="M420 210 V330 H610"/>
+  <rect class="core" x="40" y="140" width="210" height="140" rx="16"/>
+  <circle class="pulse" cx="66" cy="172" r="6"/>
+  <text x="84" y="178" font-size="15" font-weight="700">APP ROOT</text>
+  <text x="56" y="206" font-size="12">src/  server/  electron/</text>
+  <text x="56" y="226" font-size="12">companion/  ios/</text>
+  <text x="56" y="246" font-size="12">box/  plugins/  tests/</text>
+  <rect class="box" x="610" y="122" width="450" height="56" rx="12"/>
+  <text x="628" y="156" font-size="14">docs/  ·  guides, iOS, validation, publication</text>
+  <rect class="box" x="610" y="186" width="450" height="56" rx="12"/>
+  <text x="628" y="220" font-size="14">docs/screenshots/  ·  current Clawd Bot captures</text>
+  <rect class="box" x="610" y="250" width="450" height="56" rx="12"/>
+  <text x="628" y="284" font-size="14">docs/assets/  ·  animated architecture + git map</text>
+  <rect class="box" x="610" y="314" width="450" height="56" rx="12"/>
+  <text x="628" y="348" font-size="14">.github/workflows/check.yml  ·  build + workers</text>
+  <text x="40" y="400" font-size="11" class="muted">node_modules, dist-*, release artifacts, and runtime .env files are excluded from publication</text>
+</svg>

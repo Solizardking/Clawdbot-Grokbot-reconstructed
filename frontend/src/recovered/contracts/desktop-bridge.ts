@@ -124,6 +124,20 @@ export interface TranscriptionResult {
   transcriptionTimeMs?: number;
 }
 
+/** Result of a free OpenRouter TTS synthesis (`deepgram/flux-tts:free` by default). */
+export interface SpeechSynthesisResult {
+  ok: true;
+  model: string;
+  format: "mp3" | "wav" | "pcm";
+  audioBase64: string;
+  bytes: number;
+  generationId: string | null;
+}
+
+export interface SpeechDesktopBridge {
+  synthesize(request: { text: string; voice?: string }): Promise<SpeechSynthesisResult>;
+}
+
 export interface AgentModelParameter {
   id: string;
   value: string;
@@ -401,6 +415,7 @@ export interface DesktopBridge {
   onWidgetGallery(listener: BridgeListener): Unsubscribe;
   onForceOnboarding(listener: () => void): Unsubscribe;
   transcribeAudio(audio: Uint8Array, mimeType: string, language?: string): Promise<TranscriptionResult>;
+  readonly speech: SpeechDesktopBridge;
   readonly cursorAccount: CursorAccountDesktopBridge;
   readonly experiments: ExperimentsDesktopBridge;
   readonly platform: NodeJS.Platform;

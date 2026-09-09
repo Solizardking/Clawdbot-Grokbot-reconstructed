@@ -1,0 +1,21 @@
+# Security Policy
+
+## Reporting a vulnerability
+
+Please **do not open a public issue** for security problems. Use GitHub private vulnerability reporting on this repository if enabled.
+If it is unavailable, contact the repository maintainer privately before sharing
+sensitive details. Do not send reports to the upstream project for this fork.
+
+## Scope notes for researchers
+
+- The harness server binds **127.0.0.1 only** and has no authentication by design — it trusts the
+  local user. Anything that makes it reachable from off-machine, or lets one local *unprivileged
+  other user* drive it, is a vulnerability.
+- API keys live in `~/.clawdbot/config.json` and are write-only through the API (`configured`
+  booleans out, never values). Any path that echoes a stored secret back — API response, SSE event,
+  log line, argv visible in `ps` — is a vulnerability.
+- Agents run real CLIs (`claude`, `codex`) with the user's own privileges, and the permission broker
+  is the consent layer for risky actions. Bypasses of the broker (approving without a user decision,
+  spoofing the broker socket) are vulnerabilities.
+- Spawning must never route user-influenced strings through a shell. Report any `shell: true` /
+  `cmd.exe` string-building you find.

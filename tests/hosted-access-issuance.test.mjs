@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtemp, readFile, stat, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { parseHostedAccessFile } from '../scripts/lib/hosted-access-file.mjs';
+
+test('issued user access imports directly, remains private, and cannot overwrite existing access', async t => {
+  const root=await mkdtemp(join(tmpdir(),'hosted-issuance-'));
+  t.after(()=>rm(root,{recursive:true,force:true}));
+  const output=join(root,'alice');
+  const args=['services/provider-gateway/issue-user.mjs','alice','openrouter/free',output,'https://gateway.example'];
+  const result=spawnSync(process.execPath,args,{encoding:'utf8'});
+  assert.equal(result.status,0);
+  const file=await readFile(join(output,'client.env'),'utf8');
+  const access=parseHostedAccessFile(file);
+  assert.equal(access.url,'https://gateway.example');
+  assert.equal(access.model,'openrouter/free');
+  assert.ok(!result.stdout.includes(access.token));
+  assert.ok(!result.stderr.includes(access.token));
+  const policy=JSON.parse(await readFile(join(output,'user-policy.json'),'utf8'));
+  const digest=createHash('sha256').update(access.token).digest('hex');
+  assert.deepEqual(policy[digest],{id:'alice',models:['openrouter/free']});
+  assert.equal((await stat(output)).mode & 0o777,0o700);
+  assert.equal((await stat(join(output,'client.env'))).mode & 0o777,0o600);
+  assert.notEqual(spawnSync(process.execPath,args,{encoding:'utf8'}).status,0);
+  assert.equal(await readFile(join(output,'client.env'),'utf8'),file);
+});

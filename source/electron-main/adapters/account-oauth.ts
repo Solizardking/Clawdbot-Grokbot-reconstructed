@@ -26,10 +26,15 @@ function defaultWiringDeps(context: ProductionServiceContext): CursorAuthWiringD
   requireFunction(context.native?.shell?.openExternal, "electron.shell.openExternal");
   requireFunction(context.settings?.settingsStore?.getLocalToolPermission, "account settings.getLocalToolPermission");
   requireFunction(context.settings?.settingsStore?.setLocalToolPermissionCeiling, "account settings.setLocalToolPermissionCeiling");
+  requireFunction(context.settings?.settingsStore?.getInferenceProvider, "account settings.getInferenceProvider");
   requireFunction(context.requireMainEdge, "account main-edge");
   requireFunction(context.coordinatorLegs?.legs?.setHostSettings, "account coordinator.setHostSettings");
   return {
     openExternal: async (url) => { await context.native.shell.openExternal(url); },
+    localAccountEnabled: () =>
+      context.env.SAND_FORCE_CURSOR_LOGIN === "1"
+        ? false
+        : context.settings.settingsStore.getInferenceProvider() !== "cursor",
     getAccountRuntime: () => accountRuntimeOf(context),
     emitAuthStatus: (status) => context.requireMainEdge().emit("cursor-auth-changed", status),
     sentryEnabled: context.env.SAND_DISABLE_SENTRY !== "1",

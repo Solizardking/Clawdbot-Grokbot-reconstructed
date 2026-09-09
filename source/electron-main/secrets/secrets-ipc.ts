@@ -49,7 +49,7 @@ export function createBoxSecretsPush(deps: {
   pushOrThrow(trigger: string): Promise<void>;
   quiesce(): Promise<void>;
 } {
-  const attempt = async (trigger: string): Promise<{ ok: true } | { ok: false; error: unknown }> => {
+  const attempt = async (trigger: string): Promise<{ ok: true; applied: boolean } | { ok: false; error: unknown }> => {
     const departing = deps.isAccountDeparting();
     let snapshot: Awaited<ReturnType<typeof deps.userSecretsStore.exportSnapshot>>;
     try { snapshot = await deps.userSecretsStore.exportSnapshot(); }
@@ -57,26 +57,29 @@ export function createBoxSecretsPush(deps: {
       deps.report({ outcome: "failed", trigger, errorClass: error instanceof SandSecureStorageUnavailableError ? "keychain_locked" : "other" });
       return { ok: false, error };
     }
-    const sentCount = Object.keys(snapshot.secrets).length;
+    // PayBox runs in the desktop process; its scoped credentials must not be
+    // copied to the remote Cursor box with ordinary provider API keys.
+    const secrets = Object.fromEntries(Object.entries(snapshot.secrets).filter(([key]) => !key.startsWith("PAYBOX_")));
+    const sentCount = Object.keys(secrets).length;
     try {
-      const status = await deps.setBoxSecrets({ secrets: snapshot.secrets });
+      const status = await deps.setBoxSecrets({ secrets });
       deps.report({ outcome: "ok", trigger, accountScope: snapshot.accountScope, departing, secretCount: sentCount, applied: status.isApplied === true });
-      return { ok: true };
+      return { ok: true, applied: status.isApplied === true };
     } catch (error) {
       deps.report({ outcome: "failed", trigger, scope: { accountScope: snapshot.accountScope }, errorClass: "host_unreachable", secretCount: sentCount });
       return { ok: false, error };
     }
   };
-  let queue: Promise<{ ok: true } | { ok: false; error: unknown }> = Promise.resolve({ ok: true });
+  let queue: Promise<{ ok: true; applied: boolean } | { ok: false; error: unknown }> = Promise.resolve({ ok: true, applied: false });
   let quiesced = false;
-  const enqueue = (trigger: string): Promise<{ ok: true } | { ok: false; error: unknown }> => {
+  const enqueue = (trigger: string): Promise<{ ok: true; applied: boolean } | { ok: false; error: unknown }> => {
     if (quiesced) return Promise.resolve({ ok: false, error: new SandBoxSecretsPushQuiescedError() });
     const run = queue.then(() => quiesced ? { ok: false as const, error: new SandBoxSecretsPushQuiescedError() } : attempt(trigger));
     queue = run;
     return run;
   };
   return {
-    push: async (trigger) => (await enqueue(trigger)).ok,
+    push: async (trigger) => { const result = await enqueue(trigger); return result.ok && result.applied; },
     pushOrThrow: async (trigger) => { const result = await enqueue(trigger); if (!result.ok) throw result.error; },
     quiesce: async () => { quiesced = true; await queue; },
   };

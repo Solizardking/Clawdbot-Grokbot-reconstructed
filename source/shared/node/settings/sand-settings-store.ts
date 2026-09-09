@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname } from "node:path";
 
 import { DEFAULT_SAND_THEME_PREFERENCE, isSandThemePreference, type SandThemePreference } from "../../desktop.js";
+import { normalizeSandAgentCustomization, type SandAgentCustomization } from "../../agent-customization.js";
 import { SAND_DISABLED_NOTIFICATION_CONFIG } from "../../host-settings.js";
 import { SAND_DEFAULT_LOCAL_TOOL_PERMISSION, isSandLocalToolPermission, resolveSandLocalToolPermission, type SandLocalToolPermission } from "../../local-tool-permission.js";
 import { clampMcpCustomInstruction, getDefaultMcpCustomInstruction } from "../../mcp-custom-instructions.js";
@@ -9,8 +10,9 @@ import { DEFAULT_SAND_AUTO_REVIEW_INSTRUCTIONS, normalizeSandAutoReviewInstructi
 import { SidebarSections, type SidebarSection } from "../../sidebar-sections.js";
 import { coerceToEnabledTrack, isSandUpdateTrack, type SandUpdateTrack } from "../../update-track.js";
 import { isSandAgentModelSelection, type SandAgentModelSelection } from "../../agents/sand-agent-model.js";
-import { emptySandInferenceRouterUsage, isSandInferenceProvider, type SandInferenceProvider, type SandInferenceRouterUsage } from "../../inference-router.js";
+import { SAND_DEFAULT_OPENROUTER_MODEL, emptySandInferenceRouterUsage, isSandInferenceProvider, normalizeSandOpenRouterModel, type SandInferenceProvider, type SandInferenceRouterUsage } from "../../inference-router.js";
 import { DEFAULT_SAND_BOX_RUNTIME, isSandBoxRuntime, type SandBoxRuntime } from "../../box-runtime.js";
+import { clampOpenRouterCacheTtl, SAND_OPENROUTER_CACHE_DEFAULT_TTL_SECONDS, type SandOpenRouterLastRoute } from "../../open-router-cache.js";
 
 export const SETTINGS_VERSION = 1;
 export const SAND_DOWNGRADE_MAX_FAST_MIGRATION_ID = "downgrade-persisted-max-fast";
@@ -26,8 +28,10 @@ export interface SandStoredSettings {
   agentDefaultModel?: SandAgentModelSelection; computerUseModel?: SandAgentModelSelection; notifications?: Record<string, unknown>;
   userTimeZone?: string; userTimeZoneOverride?: string; autoReviewInstructions?: SandAutoReviewInstructions;
   localToolPermission?: SandLocalToolPermission; localToolPermissionCeiling?: SandLocalToolPermission;
-  inferenceProvider?: SandInferenceProvider; inferenceRouterUsage?: SandInferenceRouterUsage;
+  inferenceProvider?: SandInferenceProvider; inferenceRouterModel?: string; inferenceRouterUsage?: SandInferenceRouterUsage;
+  inferenceRouterCacheEnabled?: boolean; inferenceRouterCacheTtlSeconds?: number;
   boxRuntime?: SandBoxRuntime;
+  agentCustomization?: SandAgentCustomization;
   mcpCustomInstructionsAccountScope?: string; pinnedAgentIds?: string[]; sidebarSections?: SidebarSection[];
 }
 
@@ -41,6 +45,12 @@ function normalizeCustomInstructions(raw: StringMap): StringMap { const normaliz
 function normalizeCustomInstructionsByServerId(raw: StringMap): StringMap { const normalized: StringMap = {}; for (const [id, value] of Object.entries(raw)) if (/^[1-9]\d*$/.test(id)) normalized[id] = clampMcpCustomInstruction(value); return normalized; }
 function normalizeDisabledToolsByServerId(raw: unknown): StringListMap { const normalized: StringListMap = {}; if (typeof raw !== "object" || raw == null || Array.isArray(raw)) return normalized; for (const [id, value] of Object.entries(raw)) { if (!/^[1-9]\d*$/.test(id)) continue; const tools = [...new Set(stringArray(value).filter((name) => name.length > 0))]; if (tools.length > 0) normalized[id] = tools; } return normalized; }
 function downgradePersistedFast(model: SandAgentModelSelection): SandAgentModelSelection { return { modelId: model.modelId, maxMode: true, parameters: model.parameters.map((parameter) => ({ id: parameter.id, value: parameter.id === "fast" ? "false" : parameter.value })) }; }
+
+function normalizeLastRoute(raw: Record<string, unknown>): import("../../open-router-cache.js").SandOpenRouterLastRoute {
+  const text = (value: unknown): string | null => typeof value === "string" && value.length > 0 ? value : null;
+  const status = raw.cacheStatus === "HIT" || raw.cacheStatus === "MISS" ? raw.cacheStatus : null;
+  return { requestedModel: text(raw.requestedModel), servedModel: text(raw.servedModel), providerName: text(raw.providerName), strategy: text(raw.strategy), attempt: Number.isSafeInteger(raw.attempt) ? raw.attempt as number : null, cacheStatus: status, recordedAt: text(raw.recordedAt) ?? new Date(0).toISOString() };
+}
 
 function parseSettings(value: unknown): SandStoredSettings | null {
   if (typeof value !== "object" || value == null || Array.isArray(value)) return null;
@@ -70,7 +80,14 @@ function parseSettings(value: unknown): SandStoredSettings | null {
   if (isSandLocalToolPermission(raw.localToolPermission)) result.localToolPermission = raw.localToolPermission;
   if (isSandLocalToolPermission(raw.localToolPermissionCeiling)) result.localToolPermissionCeiling = raw.localToolPermissionCeiling;
   if (isSandInferenceProvider(raw.inferenceProvider)) result.inferenceProvider = raw.inferenceProvider;
+  const inferenceRouterModel = normalizeSandOpenRouterModel(raw.inferenceRouterModel);
+  if (inferenceRouterModel != null && inferenceRouterModel !== SAND_DEFAULT_OPENROUTER_MODEL) result.inferenceRouterModel = inferenceRouterModel;
+  if (raw.inferenceRouterCacheEnabled === true) result.inferenceRouterCacheEnabled = true;
+  const inferenceRouterCacheTtlSeconds = clampOpenRouterCacheTtl(raw.inferenceRouterCacheTtlSeconds);
+  if (inferenceRouterCacheTtlSeconds != null && inferenceRouterCacheTtlSeconds !== SAND_OPENROUTER_CACHE_DEFAULT_TTL_SECONDS) result.inferenceRouterCacheTtlSeconds = inferenceRouterCacheTtlSeconds;
   if (isSandBoxRuntime(raw.boxRuntime)) result.boxRuntime = raw.boxRuntime;
+  const agentCustomization = normalizeSandAgentCustomization(raw.agentCustomization);
+  if (agentCustomization != null) result.agentCustomization = agentCustomization;
   if (typeof raw.inferenceRouterUsage === "object" && raw.inferenceRouterUsage != null && !Array.isArray(raw.inferenceRouterUsage)) {
     const usage = emptySandInferenceRouterUsage();
     const rawProviders = (raw.inferenceRouterUsage as { providers?: unknown }).providers;
@@ -80,7 +97,7 @@ function parseSettings(value: unknown): SandStoredSettings | null {
         if (typeof item !== "object" || item == null || Array.isArray(item)) continue;
         const record = item as Record<string, unknown>;
         const count = (key: string): number => Number.isSafeInteger(record[key]) && (record[key] as number) >= 0 ? record[key] as number : 0;
-        usage.providers[provider] = { requests: count("requests"), inputTokens: count("inputTokens"), outputTokens: count("outputTokens"), cacheReadTokens: count("cacheReadTokens"), cacheWriteTokens: count("cacheWriteTokens"), lastUsedAt: typeof record.lastUsedAt === "string" ? record.lastUsedAt : null };
+        usage.providers[provider] = { requests: count("requests"), inputTokens: count("inputTokens"), outputTokens: count("outputTokens"), cacheReadTokens: count("cacheReadTokens"), cacheWriteTokens: count("cacheWriteTokens"), lastUsedAt: typeof record.lastUsedAt === "string" ? record.lastUsedAt : null, ...(provider === "openrouter" && typeof record.lastRoute === "object" && record.lastRoute != null && !Array.isArray(record.lastRoute) ? { lastRoute: normalizeLastRoute(record.lastRoute as Record<string, unknown>) } : {}) };
       }
     }
     result.inferenceRouterUsage = usage;
@@ -114,6 +131,11 @@ export class SandSettingsStore {
   setThemePreference(value: SandThemePreference): void { this.update((s) => ({ ...s, themePreference: value })); }
   getBoxRuntime(): SandBoxRuntime { return this.load().boxRuntime ?? DEFAULT_SAND_BOX_RUNTIME; }
   setBoxRuntime(value: SandBoxRuntime): void { this.update((s) => ({ ...s, boxRuntime: value })); }
+  getAgentCustomization(): SandAgentCustomization | undefined { return this.load().agentCustomization; }
+  setAgentCustomization(value: SandAgentCustomization | undefined): void {
+    const normalized = normalizeSandAgentCustomization(value);
+    this.update((s) => { const { agentCustomization: _old, ...rest } = s; return normalized === undefined ? rest : { ...rest, agentCustomization: normalized }; });
+  }
   getEgressTunnelEnabled(): boolean { return this.load().egressTunnelEnabled; }
   setEgressTunnelEnabled(value: boolean): void { this.update((s) => ({ ...s, egressTunnelEnabled: value })); }
   getWebauthnProxyEnabled(): boolean { return this.load().webauthnProxyEnabled; }
@@ -155,15 +177,40 @@ export class SandSettingsStore {
   getLocalToolPermissionChoice(): SandLocalToolPermission { return this.load().localToolPermission ?? SAND_DEFAULT_LOCAL_TOOL_PERMISSION; }
   getLocalToolPermissionCeiling(): SandLocalToolPermission | undefined { return this.load().localToolPermissionCeiling; }
   setLocalToolPermission(value: SandLocalToolPermission): void { this.update((s) => ({ ...s, localToolPermission: value })); }
-  getInferenceProvider(): SandInferenceProvider { return this.load().inferenceProvider ?? "cursor"; }
+  getInferenceProvider(): SandInferenceProvider { return this.load().inferenceProvider ?? "openrouter"; }
   setInferenceProvider(value: SandInferenceProvider): void { this.update((s) => ({ ...s, inferenceProvider: value })); }
+  getInferenceRouterModel(): string { return this.load().inferenceRouterModel ?? SAND_DEFAULT_OPENROUTER_MODEL; }
+  setInferenceRouterModel(value: string | undefined): void {
+    const normalized = normalizeSandOpenRouterModel(value);
+    if (normalized == null) return;
+    this.update((s) => {
+      if (normalized !== SAND_DEFAULT_OPENROUTER_MODEL) return { ...s, inferenceRouterModel: normalized };
+      const { inferenceRouterModel: _previous, ...rest } = s;
+      return rest;
+    });
+  }
   getInferenceRouterUsage(): SandInferenceRouterUsage { return this.load().inferenceRouterUsage ?? emptySandInferenceRouterUsage(); }
+  getInferenceRouterCacheEnabled(): boolean { return this.load().inferenceRouterCacheEnabled === true; }
+  setInferenceRouterCacheEnabled(value: boolean): void { this.update((s) => ({ ...s, ...(value ? { inferenceRouterCacheEnabled: true } : { inferenceRouterCacheEnabled: false }) })); }
+  getInferenceRouterCacheTtlSeconds(): number { return this.load().inferenceRouterCacheTtlSeconds ?? SAND_OPENROUTER_CACHE_DEFAULT_TTL_SECONDS; }
+  setInferenceRouterCacheTtlSeconds(value: number | undefined): void {
+    const clamped = clampOpenRouterCacheTtl(value);
+    if (clamped == null || clamped === SAND_OPENROUTER_CACHE_DEFAULT_TTL_SECONDS) return;
+    this.update((s) => ({ ...s, inferenceRouterCacheTtlSeconds: clamped }));
+  }
+  recordOpenRouterLastRoute(route: SandOpenRouterLastRoute): void {
+    this.update((settings) => {
+      const current = settings.inferenceRouterUsage ?? emptySandInferenceRouterUsage();
+      const previous = current.providers.openrouter;
+      return { ...settings, inferenceRouterUsage: { schemaVersion: 1, providers: { ...current.providers, openrouter: { ...previous, lastRoute: route } } } };
+    });
+  }
   recordInferenceUsage(provider: SandInferenceProvider, usage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number }): void {
     const safe = (value: number | undefined): number => Number.isFinite(value) && value! >= 0 ? Math.round(value!) : 0;
     this.update((settings) => {
       const current = settings.inferenceRouterUsage ?? emptySandInferenceRouterUsage();
       const previous = current.providers[provider];
-      return { ...settings, inferenceRouterUsage: { schemaVersion: 1, providers: { ...current.providers, [provider]: { requests: previous.requests + 1, inputTokens: previous.inputTokens + safe(usage.inputTokens), outputTokens: previous.outputTokens + safe(usage.outputTokens), cacheReadTokens: previous.cacheReadTokens + safe(usage.cacheReadTokens), cacheWriteTokens: previous.cacheWriteTokens + safe(usage.cacheWriteTokens), lastUsedAt: new Date().toISOString() } } } };
+      return { ...settings, inferenceRouterUsage: { schemaVersion: 1, providers: { ...current.providers, [provider]: { requests: previous.requests + 1, inputTokens: previous.inputTokens + safe(usage.inputTokens), outputTokens: previous.outputTokens + safe(usage.outputTokens), cacheReadTokens: previous.cacheReadTokens + safe(usage.cacheReadTokens), cacheWriteTokens: previous.cacheWriteTokens + safe(usage.cacheWriteTokens), lastUsedAt: new Date().toISOString(), ...(provider === "openrouter" && previous.lastRoute != null ? { lastRoute: previous.lastRoute } : {}) } } } };
     });
   }
   setLocalToolPermissionCeiling(value?: SandLocalToolPermission): void { this.update((s) => { const { localToolPermissionCeiling: _old, ...rest } = s; return value === undefined ? rest : { ...rest, localToolPermissionCeiling: value }; }); }

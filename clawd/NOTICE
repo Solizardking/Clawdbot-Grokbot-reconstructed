@@ -1,0 +1,15 @@
+Clawd Bot
+Copyright 2026 Clawd Bot contributors
+
+This tree is adapted from OpenMausBot (Apache License 2.0).
+Original copyright: Copyright 2026 Milind Soni and OpenMausBot contributors.
+
+OpenMausBot was relicensed from the MIT License to the Apache License,
+Version 2.0, with the consent of all contributors whose copyright was
+incorporated before the transition.
+
+See LICENSE for the full Apache License 2.0 text.
+
+Imported source/ and integration tooling retain the separate reconstruction notice
+and provenance under docs/reconstruction/. The Apache-2.0 application license
+does not grant rights over third-party reconstruction material.

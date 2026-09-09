@@ -62,6 +62,11 @@ export async function runStartupMoveCheck(
   }
   if (daemonDisposition === "stop-bootstrap") return "stop-bootstrap";
 
+  // Moving is offered to enable automatic updates. Reconstructed packages
+  // disable that updater, so the prompt would block portable launches for no
+  // benefit (including the documented launch from dist/).
+  if (env.SAND_DISABLE_UPDATES === "1") return "continue-bootstrap";
+
   const moveDisposition = await moveToApplicationsFolderIfNeeded({
     platform: deps.platform ?? process.platform,
     isLabBuild: args.isLabBuild,
@@ -69,9 +74,9 @@ export async function runStartupMoveCheck(
     confirmMove: async () => {
       const result = await deps.dialog.showMessageBox({
         type: "question",
-        title: "Move Grok Bot to Applications",
-        message: "Move Grok Bot to the Applications folder?",
-        detail: "Grok Bot cannot install updates from its current location. It will reopen after moving.",
+        title: "Move Clawd Bot to Applications",
+        message: "Move Clawd Bot to the Applications folder?",
+        detail: "Clawd Bot cannot install updates from its current location. It will reopen after moving.",
         buttons: ["Move to Applications", "Not Now"],
         defaultId: 0,
         cancelId: 1,
@@ -82,9 +87,9 @@ export async function runStartupMoveCheck(
       deps.reportFailure?.("startup", "move-to-applications", error);
       await deps.dialog.showMessageBox({
         type: "error",
-        title: "Couldn't Move Grok Bot",
-        message: "Grok Bot couldn't move to Applications",
-        detail: "Move Grok Bot to the Applications folder manually, then reopen Grok Bot",
+        title: "Couldn't Move Clawd Bot",
+        message: "Clawd Bot couldn't move to Applications",
+        detail: "Move Clawd Bot to the Applications folder manually, then reopen Clawd Bot",
         buttons: ["OK"],
         defaultId: 0,
       });

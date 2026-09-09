@@ -1,6 +1,6 @@
 import type { AgentDesktopBridge } from "../../../contracts/desktop-bridge";
 
-export type RouterProviderId = "cursor" | "claude-code" | "codex" | "openrouter";
+export type RouterProviderId = "cursor" | "claude-code" | "codex" | "openrouter" | "xai";
 
 export interface RouterProvider {
   readonly id: RouterProviderId;
@@ -10,7 +10,7 @@ export interface RouterProvider {
   readonly usageSource: "cursor" | "external";
 }
 
-export const DEFAULT_ROUTER_PROVIDER: RouterProviderId = "cursor";
+export const DEFAULT_ROUTER_PROVIDER: RouterProviderId = "openrouter";
 export const ROUTER_PROVIDER_PERSISTENCE_KEY = "settings.router-provider.v1";
 
 export const ROUTER_PROVIDERS: readonly RouterProvider[] = [
@@ -40,6 +40,13 @@ export const ROUTER_PROVIDERS: readonly RouterProvider[] = [
     label: "OpenRouter",
     description: "Use models and billing from your OpenRouter account.",
     usageDescription: "OpenRouter usage and spend are managed in your OpenRouter account and are not exposed as an in-app meter.",
+    usageSource: "external"
+  },
+  {
+    id: "xai",
+    label: "xAI",
+    description: "Use Grok models (grok-4.6 by default) with your xAI API key.",
+    usageDescription: "xAI usage and spend are managed in your xAI account and are not exposed as an in-app meter.",
     usageSource: "external"
   }
 ];

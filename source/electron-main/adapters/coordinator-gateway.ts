@@ -11,6 +11,8 @@ import type {
 import type { ProductionServiceContext } from "../main-production-services.js";
 import type { BoxConnectionInfo } from "../../shared/node/egress-tunnel/box-connection.js";
 import { createSettingsRoutedHostConnector } from "../box/local-docker-host-connector.js";
+import { createHostedRuntimeConnector } from "../box/hosted-runtime-connector.js";
+import { resolveHostedProviderConfig } from "../../shared/hosted-provider.js";
 
 function requireFunction(value: unknown, label: string): asserts value is (...args: never[]) => unknown {
   if (typeof value !== "function") {
@@ -46,12 +48,14 @@ export function createProductionCoordinatorGatewayBinding(): Pick<
         safeStorage: context.native.safeStorage,
         getAccountScope: () => context.accountLifecycle.getAccountScope() ?? undefined,
       });
-      const remote = createSettingsRoutedHostConnector(createRemoteHostConnector(
+      const remote = createHostedRuntimeConnector(createSettingsRoutedHostConnector(createRemoteHostConnector(
         deps,
         context.env,
         context.requireUpdate(),
         descriptorFastPath,
-      ), context.settings.settingsStore) as unknown as {
+      ), context.settings.settingsStore), () => resolveHostedProviderConfig(
+        key => context.secretsStores.userSecretsStore.reveal(key), context.env,
+      )) as unknown as {
         connect(): unknown | Promise<unknown>;
         recreate?: (...args: any[]) => unknown;
         forceRecreate?: (...args: any[]) => unknown;

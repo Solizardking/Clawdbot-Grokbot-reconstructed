@@ -1,0 +1,8 @@
+Welcome to ClawdMobile 1.0.
+
+• Pair securely with your Clawd Bot computer
+• Default QR pairing now stays on hosted HTTPS; Tailscale and local routes remain explicit choices
+• Chat with bots and rooms
+• Answer approvals and questions
+• Search, manage tasks, edit versions, react, and share transcripts
+• Follow live work and reconnect without losing events

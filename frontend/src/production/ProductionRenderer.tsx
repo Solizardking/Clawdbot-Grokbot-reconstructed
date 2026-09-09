@@ -33,6 +33,7 @@ import { SpreadsheetViewer } from "../recovered/features/conversation/workspace/
 import { createSpreadsheetViewerProvider, type SpreadsheetViewerMount } from "../recovered/features/conversation/workspace/spreadsheet-viewer-provider";
 import { createTranscriptCardRootMountContract } from "../recovered/features/conversation/cards/transcript-card/mount-contract";
 import { isTranscriptCardActionEntry, type TranscriptCardInteractionContext } from "../recovered/features/conversation/cards/transcript-card/message-actions";
+import { createReadAloudController, type ReadAloudState } from "../recovered/features/conversation/cards/transcript-card/read-aloud";
 import { createTranscriptCardLeafResolver } from "../recovered/features/conversation/cards/transcript-card/resolver";
 import { createCloudAgentInfoSource, createCloudAgentProvider } from "../recovered/features/conversation/cards/transcript-card/cloud-agent-provider";
 import { createWidgetInteractionAdapter, createWidgetInteractionTransport } from "../recovered/features/conversation/cards/transcript-card/widget-interactions";
@@ -1853,6 +1854,12 @@ export function ProductionRenderer({ bridge, coordinatorPort }: ProductionRender
   useEffect(() => {
     replyThreadController.replaceEntries(entries);
   }, [entries, replyThreadController]);
+  const readAloudController = useMemo(() => createReadAloudController({
+    synthesize: (request) => bridge.speech.synthesize(request),
+  }), [bridge]);
+  const [readAloudState, setReadAloudState] = useState<ReadAloudState>(readAloudController.getState());
+  useEffect(() => readAloudController.subscribe(setReadAloudState), [readAloudController]);
+  useEffect(() => () => readAloudController.stop(), [readAloudController]);
   const transcriptCardInteractions = useMemo<TranscriptCardInteractionContext>(() => ({
     threadRootId: null,
     isReadOnly: activeAgent == null || activeAgent.isGroup,
@@ -1871,7 +1878,11 @@ export function ProductionRenderer({ bridge, coordinatorPort }: ProductionRender
       row?.scrollIntoView({ block: "center", behavior: "smooth" });
     },
     isEntryInScope: (targetId) => replyThreadController.resolve(targetId).isInScope,
-  }), [activeAgent, entries, replyThreadController]);
+    readAloud: {
+      state: readAloudState,
+      toggle: (entryId, text) => { void readAloudController.toggle(entryId, text); },
+    },
+  }), [activeAgent, entries, replyThreadController, readAloudController, readAloudState]);
   const loadOlderTranscript = useCallback(() => transcriptPaginationController.loadOlder(), [transcriptPaginationController]);
   const paletteLinks = useMemo(
     () => commandPaletteLinksFromConversation(commandPaletteOpen ? conversationLinkCandidates(entries) : []),

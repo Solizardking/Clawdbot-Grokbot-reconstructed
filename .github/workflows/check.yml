@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: 26.5.0
           cache: npm
+      - name: Scan tracked files for secrets before installing dependencies
+        run: node scripts/check-secrets.mjs
       - name: Install the locked dependency graph
         run: npm ci --no-audit --no-fund
       - name: Run source and publication checks

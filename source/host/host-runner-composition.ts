@@ -1,3 +1,10 @@
+import { createTurnObservation } from "./runner/turn-observation.js";
+import { createSandMcpApprovalProvider } from "./runner/sand-auto-review-tool-escalations.js";
+import { boundedConnectorTag } from "../shared/observability/connector-auth-telemetry.js";
+import { mcpErrorClassOf, takeMcpExecErrorClass } from "../shared/node/mcp/mcp-diagnostics.js";
+import { errorLogTag } from "../shared/errors.js";
+import type { McpToolForMeta } from "./runner/tools/mcp-meta-tools.js";
+import type { TurnMcpForTurn } from "./runner/turn-agent-composition.js";
 import { dirname } from "node:path";
 import { TranscriptMirrorOffloadPool } from "./agent-isolation/transcript-mirror-offload.js";
 import type {
@@ -911,6 +918,9 @@ export function createHostRunnerComposition<Runner extends ProductionSessionBoun
     const telemetry = extensions.api("telemetry");
     const analytics = telemetry.analytics as DynamicApi | undefined;
     const mcp = extensions.api("mcp");
+    let currentMcpTools: readonly McpToolForMeta[] = [];
+    const mcpObservation = createTurnObservation({ getConversationId: () => session.id });
+    mcpObservation.setToolCallDiagnosticHandler(event => console.warn("[sand:mcp]", JSON.stringify(event)));
     const sessionApi = extensions.api("session");
     const settings = extensions.api("settings");
     const cloudAgents = extensions.api("cloud-agents");
@@ -1296,7 +1306,7 @@ export function createHostRunnerComposition<Runner extends ProductionSessionBoun
           ...(mcpCustomInstructions === undefined
             ? {}
             : { mcp: { getCustomInstructions: async (_context: Context) => await mcpCustomInstructions() } }),
-          mcpConnectedServerNamesForTurn: () => [],
+          mcpConnectedServerNamesForTurn: () => [...new Set(currentMcpTools.map(tool => tool.providerIdentifier))],
           mcpCustomInstructionsForTurn: () => new Map(),
           isMcpDiscoveryUnavailableForTurn: () => false,
           shellWatchHost: () => {
@@ -2505,6 +2515,51 @@ export function createHostRunnerComposition<Runner extends ProductionSessionBoun
                 },
                 actionAuditor: projectedActionAuditor,
                 agentId: session.id,
+                ...(!isSharedRoomTurn && typeof mcp.mcp?.createExecutor === "function" && typeof mcp.mcp?.createStateExecutor === "function" ? {
+                  mcp: {
+                    mcpForTurn: mcp.mcp as TurnMcpForTurn,
+                    persistImage: hooks.persistImage,
+                    textSpiller: productionPromptGlue.createMcpTextSpiller(),
+                    isSubagentRunner: false,
+                    beginObservation: call => mcpObservation.beginMcpExecObservation({ toolCallId: call.toolCallId, connector: call.connector, ...(call.requestId === undefined ? {} : { requestId: call.requestId }) }),
+                    boundedConnectorTag,
+                    mcpErrorClassOf,
+                    takeMcpExecErrorClass,
+                    emitConnectorCard: emission => {
+                      if (emission.connector === undefined || emission.serverId === undefined || emission.variant === undefined) throw new TypeError("MCP connector card identity is missing");
+                      hooks.transport.onUpdate({ type: "send-message", message: connectorCardEmissionToMessage({ connector: emission.connector, serverId: emission.serverId, variant: emission.variant }), timestampMs: Date.now() });
+                    },
+                    cancelThisRun,
+                    reportDiagnostic: event => console.warn("[sand:mcp]", JSON.stringify(event)),
+                    errorLogTag,
+                    mcpMeta: {
+                      getMcpTools: () => currentMcpTools,
+                      discoveryOptions: { allowInteractiveMcpAuth: true },
+                      callOptions: {
+                        validateMcpToolDescriptors: true,
+                        allowInteractiveMcpAuth: true,
+                        requestContext: new RequestContext({ env: new RequestContextEnv({ smartModeClassifierAutoModeEnabled: true }) }),
+                        smartModeClassifierMode: autoReviewModes.mcp === "enforce",
+                        smartModeClassifierShadowMode: autoReviewModes.mcp === "shadow",
+                        ...(turnAutoReviewGate.userInstructions() === undefined ? {} : { userAutoRunInstructions: turnAutoReviewGate.userInstructions() }),
+                        ...(autoReviewController === undefined ? {} : { smartModeApprovalProvider: {
+                          requestApproval: approval => createSandMcpApprovalProvider({ controller: autoReviewController, agentId: session.id, getExpiryPolicy: () => sandAutoReviewApprovalExpiryPolicy("turn") }).requestApproval({
+                            fingerprint: approval.fingerprint,
+                            signal: approval.signal,
+                            target: {
+                              blockReason: approval.target.blockReason,
+                              serverDisplayName: approval.target.serverDisplayName ?? approval.target.serverName ?? approval.target.serverIdentifier,
+                              toolName: approval.target.toolName,
+                              mcpArguments: approval.target.mcpArguments,
+                              ...(approval.target.description === undefined ? {} : { description: approval.target.description }),
+                              ...(approval.target.proposedAllowRule === undefined ? {} : { proposedAllowRule: approval.target.proposedAllowRule }),
+                            },
+                          }),
+                        } }),
+                      },
+                    },
+                  },
+                } : {}),
               };
             },
             blobStore: getAgentBlobStore(
@@ -2543,7 +2598,7 @@ export function createHostRunnerComposition<Runner extends ProductionSessionBoun
         ...(mcp.mcp != null && typeof mcp.mcp.getTools === "function"
           ? {
               mcp: {
-                getTools: (runContext: Context) => mcp.mcp.getTools(runContext),
+                getTools: async (runContext: Context) => { currentMcpTools = await mcp.mcp.getTools(runContext); return currentMcpTools; },
                 refreshAccountConfig: () => mcp.mcp.refreshAccountConfig(),
               },
             }

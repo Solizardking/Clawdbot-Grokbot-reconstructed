@@ -552,8 +552,8 @@ export async function inspectMacAppPrerequisites(appPath, { productionStartup = 
   return { status: "pass", executable, diagnostics: [{ check: "runtime:codesign", status: "pass", detail: "bundle signature is internally valid" }] };
 }
 
-export async function launchPackagedApp({ appPath, timeoutMs = 15_000, pollMs = 250 }) {
-  const prerequisites = await inspectMacAppPrerequisites(appPath, { productionStartup: true });
+export async function launchPackagedApp({ appPath, timeoutMs = 15_000, pollMs = 250, productionStartup = true }) {
+  const prerequisites = await inspectMacAppPrerequisites(appPath, { productionStartup });
   if (prerequisites.status !== "pass") return prerequisites;
   const keychainCapability = await inspectNativeTestKeychainCapability(appPath);
   if (keychainCapability.status !== "pass") {

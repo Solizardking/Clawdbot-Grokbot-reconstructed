@@ -1,0 +1,13 @@
+{
+  "name": "grok-desktop-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "tree-sitter": "0.21.1",
+    "tree-sitter-bash": "0.21.0",
+    "node-addon-api": "8.5.0",
+    "node-gyp-build": "4.8.4",
+    "node-gyp": "12.1.0"
+  },
+  "overrides": { "node-addon-api": "8.5.0" }
+}

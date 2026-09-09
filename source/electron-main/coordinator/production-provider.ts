@@ -1,4 +1,8 @@
+import { resolveHostedProviderConfig } from "../../shared/hosted-provider.js";
+import { OWS_ROUTED_TOOLS, isOwsTool, executeOwsTool } from "../wallets/ows-service.js";
+import { BUNDLED_SKILL_ROUTED_TOOLS, executeBundledSkillTool, isBundledSkillTool } from "../../shared/bundled-trading-skills.js";
 import { statSync } from "node:fs";
+import { executePayboxRoutedTool, isPayboxRoutedTool, payboxRoutedTools } from "../../node-agent-coordinator/paybox-tools.js";
 
 import type {
   ProductionCoordinatorService,
@@ -421,8 +425,20 @@ export function createProductionCoordinatorAdapter<
         onDnsDiagnostic: telemetry.reportBoxDnsDiagnostic,
         onProcessCrash: ports.telemetry.reportProcessCrash,
         getRpcTraceWindowTraceparent: ports.telemetry.getRpcTraceWindowTraceparent,
-        listRoutedMcpTools: () => context.requireMcp().listRoutedTools(),
-        executeRoutedMcpTool: (request) => context.requireMcp().executeRoutedTool(request),
+        listRoutedMcpTools: async () => {
+          const remote = await context.requireMcp().listRoutedTools();
+          return [...OWS_ROUTED_TOOLS, ...BUNDLED_SKILL_ROUTED_TOOLS, ...(Array.isArray(remote) ? remote : []), ...await payboxRoutedTools()];
+        },
+        getHostedGatewayAccess: () => resolveHostedProviderConfig(key => context.secretsStores.userSecretsStore.reveal(key), context.env),
+        executeRoutedMcpTool: async (request) => {
+          const tool = request as { name?: unknown; args?: unknown } | null;
+          if (isOwsTool(tool?.name)) return executeOwsTool(context.solana, tool.name, tool.args);
+          if (isBundledSkillTool(tool?.name)) return executeBundledSkillTool(tool.name, tool.args);
+          return isPayboxRoutedTool(tool?.name)
+            ? executePayboxRoutedTool(tool.name, tool.args)
+            : context.requireMcp().executeRoutedTool(request);
+        },
+        revealSolanaWalletSecret: (request) => Promise.resolve(context.solana.revealLocalWalletSecret(request)),
         native: ports.localExecNative,
       });
       const createRuntime = () =>

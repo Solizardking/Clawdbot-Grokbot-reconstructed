@@ -1,0 +1,8 @@
+# Historical OpenMausBot pnpm workspace list. This repo installs and builds
+# the adapted Clawd Bot surface with npm (root package.json scripts
+# clawd:typecheck / clawd:build / clawd:server). Kept so the original
+# package map is inventoryable; it is not the installer.
+packages:
+  - "."
+  - "apps/docs"
+  - "cloudflare/control-plane"

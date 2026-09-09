@@ -1,0 +1,25 @@
+{
+  "name": "@clawdbot/composio-broker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260825.1",
+    "@types/node": "^26.2.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10",
+    "wrangler": "4.125.0"
+  },
+  "scripts": {
+    "check": "npm run types && tsc -p tsconfig.json",
+    "test": "vitest run",
+    "types": "wrangler types --config wrangler.jsonc worker-configuration.d.ts",
+    "dry-run": "wrangler deploy --dry-run --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "migrate:local": "wrangler d1 migrations apply clawdbot-composio --local --config wrangler.jsonc",
+    "migrate:remote": "wrangler d1 migrations apply clawdbot-composio --remote --config wrangler.jsonc"
+  }
+}

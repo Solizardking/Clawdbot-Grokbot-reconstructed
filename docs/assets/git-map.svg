@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" role="img" aria-labelledby="git-map-title git-map-desc">
+  <title id="git-map-title">Clawd Bot repository map</title>
+  <desc id="git-map-desc">Animated map of the production source trees: parent reconstruction, standalone Clawd Bot, mobile, hosted services, and documentation. Motion stops when reduced-motion is requested.</desc>
+  <defs>
+    <linearGradient id="gitmap-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#16102c"/>
+      <stop offset="1" stop-color="#1d1433"/>
+    </linearGradient>
+    <linearGradient id="gitmap-accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#3ee6b0"/>
+    </linearGradient>
+    <filter id="gitmap-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #f4efff; }
+    .muted { fill: #9d97b8; }
+    .label { fill: #d7d1ee; }
+    .box { fill: #171b31; stroke: #6f628e; stroke-width: 1.25; }
+    .box-core { fill: #1d1736; stroke: #a58aff; stroke-width: 1.6; }
+    .box-live { fill: #12261f; stroke: #3ee6b0; }
+    .route { fill: none; stroke: url(#gitmap-accent); stroke-width: 2; stroke-dasharray: 6 10; animation: gitflow 4s linear infinite; }
+    .pulse { animation: gitpulse 2.8s ease-in-out infinite; }
+    .orbit { animation: gitorbit 12s linear infinite; transform-origin: 550px 280px; }
+    @keyframes gitflow { to { stroke-dashoffset: -64; } }
+    @keyframes gitpulse { 50% { opacity: 0.35; } }
+    @keyframes gitorbit { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .route, .pulse, .orbit { animation: none; }
+    }
+  </style>
+  <rect width="1100" height="560" rx="24" fill="url(#gitmap-bg)"/>
+  <g class="orbit" opacity="0.35">
+    <circle cx="180" cy="90" r="3" fill="#a58aff"/>
+    <circle cx="980" cy="140" r="2.5" fill="#3ee6b0"/>
+    <circle cx="240" cy="480" r="2" fill="#72edc3"/>
+  </g>
+  <text x="44" y="42" font-size="12" letter-spacing="3.2" class="muted">PRODUCTION SOURCE MAP</text>
+  <text x="44" y="82" font-size="30" font-weight="700">Solizardking / grok-bot-0.18-reconstructed</text>
+  <text x="44" y="108" font-size="14" class="muted">Parent runtime + standalone Clawd Bot + mobile + hosted gateway</text>
+  <text x="44" y="132" font-size="12" class="muted">github.com/Solizardking/clawd-bots is the Clawd Bot product remote</text>
+
+  <path class="route" d="M250 250 H430 V200 H620"/>
+  <path class="route" d="M250 250 H430 V300 H620"/>
+  <path class="route" d="M250 250 H430 V400 H620"/>
+  <path class="route" d="M250 250 V470 H430"/>
+  <path class="route" d="M800 200 H1040"/>
+  <path class="route" d="M800 300 H1040"/>
+  <path class="route" d="M800 400 H1040"/>
+
+  <g>
+    <rect class="box-core" x="40" y="168" width="210" height="164" rx="16"/>
+    <circle class="pulse" cx="68" cy="198" r="6" fill="#72edc3" filter="url(#gitmap-glow)"/>
+    <text x="84" y="204" font-size="15" font-weight="700">PARENT ROOT</text>
+    <text x="56" y="232" font-size="12" class="label">source/  frontend/</text>
+    <text x="56" y="252" font-size="12" class="label">scripts/  tests/</text>
+    <text x="56" y="272" font-size="12" class="label">plugins/  services/</text>
+    <text x="56" y="292" font-size="12" class="label">deploy/  manifests/</text>
+    <text x="56" y="312" font-size="12" class="muted">GitHub Actions + LFS</text>
+  </g>
+
+  <g>
+    <rect class="box-core" x="620" y="160" width="180" height="80" rx="14"/>
+    <text x="640" y="192" font-size="14" font-weight="700">clawd/</text>
+    <text x="640" y="214" font-size="11" class="muted">standalone desktop app</text>
+  </g>
+  <g>
+    <rect class="box" x="620" y="260" width="180" height="80" rx="14"/>
+    <text x="640" y="292" font-size="14" font-weight="700">clawd-mobile/</text>
+    <text x="640" y="314" font-size="11" class="muted">Expo / Android APK</text>
+  </g>
+  <g>
+    <rect class="box" x="620" y="360" width="180" height="80" rx="14"/>
+    <text x="640" y="392" font-size="14" font-weight="700">docs/</text>
+    <text x="640" y="414" font-size="11" class="muted">architecture + publish</text>
+  </g>
+  <g>
+    <rect class="box-live" x="40" y="430" width="390" height="90" rx="14"/>
+    <text x="60" y="462" font-size="14" font-weight="700">box/  ·  tools/  ·  research-archives/</text>
+    <text x="60" y="486" font-size="12" class="muted">hop executor, OpenGrok compare, pinned 0.18.0 installers (LFS)</text>
+  </g>
+
+  <g>
+    <rect class="box-live" x="860" y="160" width="200" height="80" rx="14"/>
+    <text x="878" y="192" font-size="13" font-weight="700">clawd/docs/</text>
+    <text x="878" y="214" font-size="11" class="muted">guides + screenshots</text>
+  </g>
+  <g>
+    <rect class="box" x="860" y="260" width="200" height="80" rx="14"/>
+    <text x="878" y="292" font-size="13" font-weight="700">services/gateway</text>
+    <text x="878" y="314" font-size="11" class="muted">Fly hosted providers</text>
+  </g>
+  <g>
+    <rect class="box" x="860" y="360" width="200" height="80" rx="14"/>
+    <text x="878" y="392" font-size="13" font-weight="700">.github/workflows</text>
+    <text x="878" y="414" font-size="11" class="muted">check + desktop packages</text>
+  </g>
+  <text x="44" y="542" font-size="11" class="muted">Illustration of the published trees · node_modules, .cache, and runtime .env files stay local</text>
+</svg>

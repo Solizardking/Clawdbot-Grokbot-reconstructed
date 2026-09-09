@@ -1,3 +1,4 @@
+import { birdeyeRoutedTools, createDefaultBirdeyePort, executeBirdeyeRoutedTool, isBirdeyeRoutedTool } from "./birdeye-tools.js";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -6,6 +7,17 @@ import { runRoutedProviderText } from "../host/extensions/inference/provider-ses
 import type { SandInferenceProvider } from "../shared/inference-router.js";
 import { SandSettingsStore } from "../shared/node/settings/sand-settings-store.js";
 import { createRoutedMcpBridge } from "./routed-mcp-bridge.js";
+import { ensurePumpTape, executePumpRoutedTool, isPumpRoutedTool, pumpRoutedTools } from "./pump-tape.js";
+import { executeKernelRoutedTool, isKernelRoutedTool, kernelRoutedTools } from "./kernel-tools.js";
+import { browserUseRoutedTools, executeBrowserUseRoutedTool, isBrowserUseRoutedTool } from "./browser-use-tools.js";
+import { e2bRoutedTools, executeE2bRoutedTool, isE2bRoutedTool } from "./e2b-tools.js";
+import { executeGrokMediaRoutedTool, grokMediaRoutedTools, isGrokMediaRoutedTool } from "./grok-media-tools.js";
+import { createDefaultSolanaTradingPort, executeSolanaTradingRoutedTool, isSolanaTradingRoutedTool, solanaTradingRoutedTools } from "./solana-trading-tools.js";
+import { createDefaultSolanaAgentPort, executeSolanaAgentRoutedTool, isSolanaAgentRoutedTool, solanaAgentRoutedTools } from "./solana-agent-tools.js";
+import { clawdGatewayRoutedTools, createDefaultClawdGatewayPort, executeClawdGatewayRoutedTool, isClawdGatewayRoutedTool } from "./clawd-gateway-tools.js";
+import { cloudBoxRoutedTools, executeCloudBoxRoutedTool, isCloudBoxRoutedTool } from "./cloud-box-tools.js";
+import { executeWebRoutedTool, isWebRoutedTool, webRoutedTools } from "./web-tools.js";
+import { BUNDLED_SKILL_ROUTED_TOOLS, executeBundledSkillTool, isBundledSkillTool } from "../shared/bundled-trading-skills.js";
 
 type StoredEntry = {
   readonly provider: Exclude<SandInferenceProvider, "cursor">;
@@ -34,7 +46,7 @@ export function parseInferenceRouterTranscriptStore(value: unknown): Store {
     const entries: StoredEntry[] = [];
     for (const raw of rawEntries) {
       const row = asRecord(raw);
-      if (row == null || !["codex", "claude-code", "openrouter"].includes(String(row.provider)) || !["user", "assistant"].includes(String(row.role)) || typeof row.content !== "string" || typeof row.id !== "string" || typeof row.timestampMs !== "number" || (row.clientNonce !== undefined && typeof row.clientNonce !== "string") || (row.richText !== undefined && typeof row.richText !== "string")) continue;
+      if (row == null || !["codex", "claude-code", "openrouter", "xai"].includes(String(row.provider)) || !["user", "assistant"].includes(String(row.role)) || typeof row.content !== "string" || typeof row.id !== "string" || typeof row.timestampMs !== "number" || (row.clientNonce !== undefined && typeof row.clientNonce !== "string") || (row.richText !== undefined && typeof row.richText !== "string")) continue;
       if (row.reactions !== undefined && (!Array.isArray(row.reactions) || row.reactions.some(reaction => asRecord(reaction) == null || typeof asRecord(reaction)!.emoji !== "string" || typeof asRecord(reaction)!.by !== "string"))) continue;
       entries.push(row as unknown as StoredEntry);
     }
@@ -53,6 +65,7 @@ export function createCoordinatorInferenceRouter(options: {
   readonly dataDir: string;
   readonly postEvent: (family: string, payload: unknown) => void;
   readonly dispatchRemote: (method: string, args: unknown) => Promise<unknown>;
+  readonly useHostedRuntime?: () => boolean;
   readonly now?: () => number;
 }) {
   const settings = new SandSettingsStore(join(options.dataDir, "settings.json"));
@@ -159,25 +172,63 @@ export function createCoordinatorInferenceRouter(options: {
       emitTranscript(agentId, assistantStreamStarted ? "updated" : "appended", entry);
       assistantStreamStarted = true;
     };
+    const withLocalTools = async (): Promise<Record<string, any>[]> => {
+      const remote = await options.dispatchRemote("listRoutedMcpTools", {});
+      const kernelTools = await kernelRoutedTools().catch(() => [] as never[]);
+      return [...(Array.isArray(remote) ? remote as Record<string, any>[] : []), ...BUNDLED_SKILL_ROUTED_TOOLS, ...pumpRoutedTools(), ...kernelTools, ...e2bRoutedTools(), ...browserUseRoutedTools(), ...grokMediaRoutedTools(), ...birdeyeRoutedTools(), ...solanaTradingRoutedTools(), ...solanaAgentRoutedTools(), ...clawdGatewayRoutedTools(), ...cloudBoxRoutedTools(), ...webRoutedTools()];
+    };
+    const revealWallet = async (raw: unknown) => await options.dispatchRemote("solana_reveal_wallet_secret", raw) as string;
+    const tradingPort = createDefaultSolanaTradingPort({ revealLocalWalletSecret: revealWallet });
+    const agentPort = createDefaultSolanaAgentPort({ revealLocalWalletSecret: revealWallet });
+    const gatewayPort = createDefaultClawdGatewayPort();
+    const executeLocalTool = (name: string, args: unknown): Promise<unknown> | null => {
+      if (isBirdeyeRoutedTool(name)) return executeBirdeyeRoutedTool(createDefaultBirdeyePort(), name, args);
+      if (isPumpRoutedTool(name)) return executePumpRoutedTool(name, args);
+      if (isKernelRoutedTool(name)) return executeKernelRoutedTool(name, args);
+      if (isE2bRoutedTool(name)) return executeE2bRoutedTool(name, args);
+      if (isBrowserUseRoutedTool(name)) return executeBrowserUseRoutedTool(name, args);
+      if (isGrokMediaRoutedTool(name)) return executeGrokMediaRoutedTool(name, args);
+      if (isSolanaTradingRoutedTool(name)) return executeSolanaTradingRoutedTool(tradingPort, name, args);
+      if (isSolanaAgentRoutedTool(name)) return executeSolanaAgentRoutedTool(agentPort, name, args);
+      if (isClawdGatewayRoutedTool(name)) return executeClawdGatewayRoutedTool(gatewayPort, name, args);
+      if (isCloudBoxRoutedTool(name)) return executeCloudBoxRoutedTool(name, args);
+      if (isWebRoutedTool(name)) return executeWebRoutedTool(name, args);
+      if (isBundledSkillTool(name)) return Promise.resolve(executeBundledSkillTool(name, args));
+      return null;
+    };
+    const localPumpResult = async (name: string, args: unknown): Promise<unknown> => {
+      try {
+        const payload = await (executeLocalTool(name, args) ?? Promise.reject(new Error(`Unknown local tool: ${name}`)));
+        return { result: { case: "success", value: { content: [{ content: { case: "text", value: { text: JSON.stringify(payload) } } }] } } };
+      } catch (error) {
+        return { result: { case: "error", value: { error: error instanceof Error ? error.message : String(error) } } };
+      }
+    };
     const bridge = provider === "claude-code" ? await createRoutedMcpBridge({
-      listTools: () => options.dispatchRemote("listRoutedMcpTools", {}),
-      callTool: tool => options.dispatchRemote("executeRoutedMcpTool", { ...tool, agentId }),
+      listTools: withLocalTools,
+      callTool: tool => isBirdeyeRoutedTool(tool.name) || isPumpRoutedTool(tool.name) || isKernelRoutedTool(tool.name) || isE2bRoutedTool(tool.name) || isBrowserUseRoutedTool(tool.name) || isGrokMediaRoutedTool(tool.name) || isSolanaTradingRoutedTool(tool.name) || isSolanaAgentRoutedTool(tool.name) || isClawdGatewayRoutedTool(tool.name) || isCloudBoxRoutedTool(tool.name) || isWebRoutedTool(tool.name) || isBundledSkillTool(tool.name) ? localPumpResult(tool.name, tool.args) : options.dispatchRemote("executeRoutedMcpTool", { ...tool, agentId }),
     }) : null;
-    const directTools = bridge == null ? await options.dispatchRemote("listRoutedMcpTools", {}) : undefined;
-    const tools = Array.isArray(directTools) ? directTools as Record<string, any>[] : undefined;
+    ensurePumpTape();
+    const tools = bridge == null ? await withLocalTools() : undefined;
     const onTextDelta = (_delta: string, accumulated: string) => emitAssistant(accumulated, true);
+    const agentCustomization = settings.getAgentCustomization();
     try { content = await runRoutedProviderText(provider, messages, bridge == null ? {
       ...(tools === undefined ? {} : { tools }),
-      executeTool: async (definition, toolArgs, toolCallId) => await options.dispatchRemote("executeRoutedMcpTool", {
-        providerIdentifier: definition.providerIdentifier,
-        name: definition.name,
-        toolName: definition.toolName,
-        args: toolArgs,
-        toolCallId,
-        agentId,
-      }),
+      ...(agentCustomization === undefined ? {} : { agentCustomization }),
+      executeTool: async (definition, toolArgs, toolCallId) => {
+        const local = executeLocalTool(definition.name, toolArgs);
+        if (local != null) return await local;
+        return await options.dispatchRemote("executeRoutedMcpTool", {
+          providerIdentifier: definition.providerIdentifier,
+          name: definition.name,
+          toolName: definition.toolName,
+          args: toolArgs,
+          toolCallId,
+          agentId,
+        });
+      },
       onTextDelta,
-    } : { mcpServerUrl: bridge.url, onTextDelta }); }
+    } : { mcpServerUrl: bridge.url, onTextDelta, ...(agentCustomization === undefined ? {} : { agentCustomization }) }); }
     finally { endActivity(); await bridge?.close(); }
     await append(agentId, [{ provider, role: "assistant", content, id: assistantId, timestampMs: assistantTimestampMs }]);
     emitAssistant(content, false);
@@ -188,14 +239,23 @@ export function createCoordinatorInferenceRouter(options: {
     provider(): SandInferenceProvider { return settings.getInferenceProvider(); },
     async dispatch(method: string, args: unknown): Promise<{ handled: boolean; value?: unknown }> {
       const provider = settings.getInferenceProvider();
+      const hosted = options.useHostedRuntime?.() === true && (provider === "openrouter" || provider === "xai");
+      if (hosted && method === "sendPrompt") {
+        await options.dispatchRemote("setHostSettings", { inferenceProvider: provider, inferenceRouterModel: settings.getInferenceRouterModel() });
+        // The existing host engine owns execution, durable transcripts and SSE.
+        // Never acknowledge a local substitute after hosted routing is selected.
+        return { handled: false };
+      }
       if (method === "reactToMessage") {
         const record = asRecord(args) ?? {};
         const agentId = typeof record.agentId === "string" ? record.agentId : "";
-        const entryId = typeof record.entryId === "string" ? record.entryId : "";
+        const rawEntryId = typeof record.entryId === "string" ? record.entryId : "";
+        if (hosted && !rawEntryId.startsWith("legacy:")) return { handled: false };
+        const entryId = hosted ? rawEntryId.slice(7) : rawEntryId;
         const emoji = typeof record.emoji === "string" ? record.emoji : "";
         const updated = await toggleLocalReaction(agentId, entryId, emoji);
         if (updated != null) {
-          emitTranscript(agentId, "updated", updated);
+          emitTranscript(agentId, "updated", hosted ? { ...updated, id: rawEntryId } : updated);
           return { handled: true, value: undefined };
         }
       }
@@ -205,7 +265,10 @@ export function createCoordinatorInferenceRouter(options: {
         const [remote, local] = await Promise.all([options.dispatchRemote(method, args), load()]);
         const result = asRecord(remote);
         if (result == null || !Array.isArray(result.entries) || agentId.length === 0) return { handled: true, value: remote };
-        const entries = [...result.entries, ...(local.agents[agentId] ?? []).map(projectInferenceRouterTranscriptEntry)];
+        const historical = (local.agents[agentId] ?? []).map(projectInferenceRouterTranscriptEntry)
+          .map(entry => hosted ? { ...entry, id: `legacy:${entry.id}` } : entry);
+        const entries = [...result.entries, ...historical];
+        if (hosted) entries.sort((a, b) => Number(asRecord(a)?.timestampMs ?? 0) - Number(asRecord(b)?.timestampMs ?? 0));
         const limit = typeof record.limit === "number" && Number.isInteger(record.limit) && record.limit > 0 ? record.limit : 500;
         return { handled: true, value: { ...result, entries: entries.slice(-limit) } };
       }

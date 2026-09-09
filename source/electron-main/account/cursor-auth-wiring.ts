@@ -1,11 +1,13 @@
 import { createSandAccessReader, readSandAccessOnce, type SandAccess } from "./access.js";
 import { SandCursorAuthService, type AccessTokenReader, type SandAuthStatus, type SandCursorAuthServiceOptions } from "./cursor-auth.js";
+import { wrapAuthServiceWithLocalAccountFallback } from "./local-account-fallback.js";
 import { fetchCursorProfile, fetchLocalToolPermissionCeiling, fetchUserPrivacyMode, updateCursorProfileName } from "./cursor-profile.js";
 import { SandTranscriptionManager, type SandTranscriptionOptions } from "./cursor-transcribe.js";
 import { syncSandSentryAccount } from "../telemetry/sentry.js";
 import type { PrivacyMode } from "../../shared/observability/sentry-privacy-mode.js";
 
 export const SUPPORTED_DASHBOARD_ACTIONS = new Set(["requestLimitIncrease"] as const);
+export { createLocalAccountStatus, LOCAL_ACCOUNT_AUTH_ID, wrapAuthServiceWithLocalAccountFallback } from "./local-account-fallback.js";
 export const NO_SAND_PR_REVIEW_PREFERENCES = { user: undefined, team: undefined } as const;
 export interface DashboardActionRequest { readonly action: "requestLimitIncrease"; readonly args: Readonly<Record<string, string>> }
 export interface AccountRuntime {
@@ -29,6 +31,8 @@ export function createCursorAuthWiring(deps: {
   readonly openExternal: (url: string) => void | Promise<void>;
   readonly serviceOptions?: Omit<SandCursorAuthServiceOptions, "openExternal">;
   readonly createAuthService?: (options: SandCursorAuthServiceOptions) => AuthServicePort;
+  /** Presents the local account when the routed provider needs no Cursor session. */
+  readonly localAccountEnabled?: () => boolean;
   readonly fetchProfile?: (getAccessToken: AccessTokenReader) => Promise<{ readonly email?: string; readonly displayName?: string; readonly profilePictureUrl?: string; readonly isAnysphereUser: boolean } | null>;
   readonly updateProfileName?: (getAccessToken: AccessTokenReader, name: string) => Promise<void>;
   readonly reportSessionSettlement?: SandCursorAuthServiceOptions["reportSessionSettlement"];
@@ -57,7 +61,10 @@ export function createCursorAuthWiring(deps: {
     const sequence = ++localToolCeilingSyncSeq;
     const previous = deps.settingsStore.getLocalToolPermission();
     let ceiling: string | undefined;
-    if (status.kind === "logged-in") ceiling = await readLocalToolPermissionCeiling((options) => service.getValidAccessToken(options));
+    if (status.kind === "logged-in") {
+      try { ceiling = await readLocalToolPermissionCeiling((options) => service.getValidAccessToken(options)); }
+      catch (error) { deps.reportFailure?.("account", "local-tool-ceiling-read", error); ceiling = undefined; }
+    }
     if (sequence !== localToolCeilingSyncSeq) return;
     deps.settingsStore.setLocalToolPermissionCeiling(ceiling);
     const effective = deps.settingsStore.getLocalToolPermission();
@@ -75,7 +82,7 @@ export function createCursorAuthWiring(deps: {
 
   async function ensureCursorAuthService(): Promise<AuthServicePort> {
     if (cursorAuthService != null) return cursorAuthService;
-    const service = (deps.createAuthService ?? ((options) => new SandCursorAuthService(options)))({
+    const created = (deps.createAuthService ?? ((options) => new SandCursorAuthService(options)))({
       ...(deps.serviceOptions ?? {}),
       openExternal: deps.openExternal,
       fetchProfile: deps.fetchProfile ?? (async (getAccessToken) => {
@@ -90,13 +97,16 @@ export function createCursorAuthWiring(deps: {
       updateProfileName: deps.updateProfileName ?? ((getAccessToken, name) => updateCursorProfileName(getAccessToken, name, {})),
       ...(deps.reportSessionSettlement == null ? {} : { reportSessionSettlement: deps.reportSessionSettlement }),
     });
+    const service = deps.localAccountEnabled == null
+      ? created
+      : wrapAuthServiceWithLocalAccountFallback(created, { isEnabled: deps.localAccountEnabled });
     unsubscribeAuthStatus = service.subscribe((status) => {
       const runtime = deps.getAccountRuntime();
       if (runtime == null) deliverCursorAuthStatus(service, status);
       else runtime.observe(status);
     });
     cursorAuthService = service;
-    if (deps.sentryEnabled) void service.getStatus().then((status) => syncSentryAccount(status, () => readPrivacyMode((options) => service.getValidAccessToken(options))));
+    if (deps.sentryEnabled) void service.getStatus().then((status) => syncSentryAccount(status, () => readPrivacyMode((options) => service.getValidAccessToken(options)))).catch((error) => deps.reportFailure?.("account", "sentry-account-sync", error));
     void service.getStatus().then((status) => syncLocalToolPermissionCeiling(service, status));
     return service;
   }
@@ -172,7 +182,7 @@ export function createCursorAccountEdgePort(deps: {
     cancelTrial: async () => !await deps.isUsagePageEnabled() ? { ok: false, message: "This isn’t available right now" } : await withService(async (service) => (await service.getStatus()).kind === "logged-in" ? await deps.cancelTrial(tokenReader(service)) : { ok: false, message: "Sign in to Cursor to continue" }),
     invokeDashboardAction: async (raw: unknown) => {
       const request = parseDashboardActionRequest(raw);
-      if (request == null) return { ok: false, message: `This action isn’t supported by this version of ${deps.productDisplayName ?? "Grok Bot"}` };
+      if (request == null) return { ok: false, message: `This action isn’t supported by this version of ${deps.productDisplayName ?? "Clawd Bot"}` };
       return await withService(async (service) => (await service.getStatus()).kind === "logged-in" ? await deps.invokeDashboardAction(tokenReader(service), request) : { ok: false, message: "Sign in to Cursor to continue" });
     },
   };

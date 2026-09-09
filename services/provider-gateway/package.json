@@ -1,0 +1,9 @@
+{
+  "name": "grok-provider-gateway",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@e2b/desktop": "2.3.2",
+    "jose": "6.2.12"
+  }
+}

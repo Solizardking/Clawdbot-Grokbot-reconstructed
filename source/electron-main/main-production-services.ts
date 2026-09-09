@@ -1,3 +1,8 @@
+import { birdeyeRoutedTools, createDefaultBirdeyePort, executeBirdeyeRoutedTool, isBirdeyeRoutedTool } from "../node-agent-coordinator/birdeye-tools.js";
+import { createOwsService, OWS_ROUTED_TOOLS, isOwsTool, executeOwsTool } from "./wallets/ows-service.js";
+import { BUNDLED_SKILL_ROUTED_TOOLS, executeBundledSkillTool, isBundledSkillTool } from "../shared/bundled-trading-skills.js";
+import { installBundledPluginSkills } from "./plugins/bundled-plugin-install.js";
+import { getSandRootDir } from "../host/host-paths.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ApplicationMenuElectronPort, ApplicationMenuItem } from "./application-menu.js";
@@ -6,6 +11,8 @@ import { createEgressConnectionObserver } from "./box/remote-connector-egress.js
 import { createDesktopGatewayDescriptorFastPath } from "./box/gateway-descriptor-store.js";
 import { createRemoteHostConnector, type SandRemoteHostConnector } from "./box/box-host-connector.js";
 import { createSettingsRoutedHostConnector } from "./box/local-docker-host-connector.js";
+import { createHostedRuntimeConnector } from "./box/hosted-runtime-connector.js";
+import { resolveHostedProviderConfig } from "../shared/hosted-provider.js";
 import { createSandClientPauseControl } from "./box/box-client-pause.js";
 import { createSandMigrationWatcher } from "./box/box-migration-watcher.js";
 import type { RecreateResult } from "./box/box-recreate-commands.js";
@@ -34,6 +41,23 @@ import type { SandUpdateService } from "./update/sand-update-service.js";
 import { createWindowStatePersistence, type WindowStatePersistenceScreen } from "./window-state-persistence.js";
 import { submitFeedbackReport } from "./feedback/feedback-report.js";
 import { createSecretsStores } from "./secrets/secrets-ipc.js";
+import { createSolanaService, type PhantomSdkModule } from "./solana/solana-service.js";
+import { createLocalSolanaWalletStore } from "./solana/local-wallets.js";
+import { SOLANA_ROUTED_TOOLS, executeSolanaRoutedTool, isSolanaRoutedTool } from "./solana/solana-routed-tools.js";
+import { SOLANA_TRADING_ROUTED_TOOLS, createSolanaTradingEnvResolvers, executeSolanaTradingRoutedTool, isSolanaTradingRoutedTool, type SolanaTradingPort } from "../node-agent-coordinator/solana-trading-tools.js";
+import { SOLANA_AGENT_ROUTED_TOOLS, createDefaultSolanaAgentPort, executeSolanaAgentRoutedTool, isSolanaAgentRoutedTool } from "../node-agent-coordinator/solana-agent-tools.js";
+import { CLAWD_GATEWAY_ROUTED_TOOLS, createDefaultClawdGatewayPort, executeClawdGatewayRoutedTool, isClawdGatewayRoutedTool } from "../node-agent-coordinator/clawd-gateway-tools.js";
+import { CLOUD_BOX_ROUTED_TOOLS, executeCloudBoxRoutedTool, isCloudBoxRoutedTool } from "../node-agent-coordinator/cloud-box-tools.js";
+import { executeE2bRoutedTool, e2bRoutedTools, isE2bRoutedTool } from "../node-agent-coordinator/e2b-tools.js";
+import { browserUseRoutedTools, executeBrowserUseRoutedTool, isBrowserUseRoutedTool } from "../node-agent-coordinator/browser-use-tools.js";
+import { injectSolanaBotEnv } from "../shared/solana-bot-env.js";
+import { executePayboxRoutedTool, isPayboxRoutedTool, payboxRoutedTools, setPayboxSecretReader } from "../node-agent-coordinator/paybox-tools.js";
+import { createTelegramBotService } from "./telegram/telegram-runtime.js";
+import { ensurePumpTape, executePumpRoutedTool, isPumpRoutedTool, pumpRoutedTools } from "../node-agent-coordinator/pump-tape.js";
+import { executeGrokMediaRoutedTool, grokMediaRoutedTools, isGrokMediaRoutedTool } from "../node-agent-coordinator/grok-media-tools.js";
+import { executeWebRoutedTool, isWebRoutedTool, webRoutedTools } from "../node-agent-coordinator/web-tools.js";
+import { runRoutedProviderText } from "../host/extensions/inference/provider-session.js";
+import { createLoginFanfarePlayer } from "./sfx/login-sfx.js";
 import { desktopStructuredLogAccountSlot } from "./telemetry/desktop-structured-log-spill.js";
 import { clientFailureReportToTelemetry } from "./telemetry/client-failure-telemetry.js";
 import { createDesktopHostSettingsFields } from "./prefs/host-settings-fields.js";
@@ -357,6 +381,10 @@ export interface ProductionServiceContext {
   readonly avatarImages: unknown;
   /** Exact account RPC edge installed beside the generated MainEdge handlers. */
   readonly cursorAccount: unknown;
+  /** Solana mode service: Phantom wallet infrastructure and Helius DAS reads. */
+  readonly solana: ReturnType<typeof createSolanaService> & ReturnType<typeof createLocalSolanaWalletStore> & ReturnType<typeof createOwsService>;
+  /** Bring-your-own Telegram bot bridge: user tokens, long-poll runtime, routed turns. */
+  readonly telegram: unknown;
   /** Lazy generated AiService transcription manager installed by the root. */
   readonly ensureTranscriptionManager: () => Promise<unknown>;
   readonly fetchAvailableModels: () => Promise<unknown>;
@@ -485,6 +513,8 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
   let accountStatusSequence = 0;
   let cursorAuthSignedIn = false;
   let accountTransitionDeparting = false;
+  let authStatusSeen = false;
+  const loginFanfare = createLoginFanfarePlayer();
   let dataRootSettlement: DataRootSettlement | null = null, hasIsolatedUserData = false, foundationInitialized = false, initialization: Promise<ElectronMainServices> | undefined, disposed = false, quitState: "idle" | "flushing" | "settled" = "idle";
   const disposables: ProductionDisposable[] = [];
   const disposedValues = new Set<object>();
@@ -600,8 +630,11 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         isAccountDeparting: () => accountTransitionDeparting,
         beginTransition: () => { accountTransitionDeparting = true; connectorEgress.noteAccountDeparted(); },
         deliverStatus: (status) => {
+          const wasSignedIn = cursorAuthSignedIn;
           cursorAuthSignedIn = (desktopStructuredLogAccountSlot(status) ?? "logged-out") !== "logged-out";
           accountTransitionDeparting = false;
+          if (loginFanfare.shouldPlay({ hasSeenStatus: authStatusSeen, wasSignedIn, nextSignedIn: cursorAuthSignedIn, authId: (status as { authId?: string }).authId })) loginFanfare.play();
+          authStatusSeen = true;
         },
       };
       secretsStores = createSecretsStores(
@@ -644,12 +677,13 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         connectorEgress,
       );
       clientPauseControl = pauseControl;
-      const rawRemoteConnector: SandRemoteHostConnector = createSettingsRoutedHostConnector(createRemoteHostConnector(
+      const rawRemoteConnector: SandRemoteHostConnector = createHostedRuntimeConnector(createSettingsRoutedHostConnector(createRemoteHostConnector(
           backendClientOptions,
           env,
           { noteBackendUpdateRequirement: (required) => requireValue(update, "update").noteBackendUpdateRequirement(required) },
           gatewayFastPath,
-        ), requireValue(settings, "settings").settingsStore);
+        ), requireValue(settings, "settings").settingsStore),
+        () => resolveHostedProviderConfig(key => requireValue(secretsStores, "secrets").userSecretsStore.reveal(key), env));
       const baseRemoteConnector = wrapRemoteHostConnectorWithDevBoxPlane(
         rawRemoteConnector,
         {
@@ -702,6 +736,86 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         refreshMcp: (completion) => requireValue(mcp, "mcp").refreshHostMcp(completion),
         syncHostSettings: (update) => coordinatorResync.pushHostSettings(update),
       };
+      const solanaService = createSolanaService({
+        revealSecret: (key) => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key),
+        readRegistry: () => requireValue(secretsStores, "secrets-stores").clientPersistenceStore.read("solana.wallet-registry.v1"),
+        writeRegistry: (value) => requireValue(secretsStores, "secrets-stores").clientPersistenceStore.write("solana.wallet-registry.v1", JSON.stringify(value)),
+        loadServerSdk: async () => await import("@phantom/server-sdk") as unknown as PhantomSdkModule,
+        envHeliusKey: env.HELIUS_API_KEY,
+        envHeliusRpcUrl: env.HELIUS_RPC_URL,
+      });
+      const solanaLocalWallets = createLocalSolanaWalletStore({
+        safeStorage: bindings.native.safeStorage,
+        storePath: join(bindings.native.app.getPath("userData"), "solana-local-wallets.json"),
+      });
+      const solanaServiceMerged = Object.assign(solanaService, solanaLocalWallets, createOwsService());
+      try { installBundledPluginSkills(getSandRootDir()); } catch {}
+      setPayboxSecretReader(key => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key));
+      // Inject HELIUS_RPC_URL / HELIUS_API_KEY / JUPITER_API_KEY into this
+      // process so every bot child (coordinator, daemon, host) inherits them;
+      // env wins, the secret store fills gaps, HELIUS_RPC_URL is derived.
+      void injectSolanaBotEnv({
+        revealSecret: (key) => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key),
+      }).catch(() => {});
+      const solanaTradingPort: SolanaTradingPort = {
+        fetchImpl: globalThis.fetch as typeof fetch,
+        ...createSolanaTradingEnvResolvers({
+          revealSecret: (key) => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key),
+          env,
+        }),
+        revealLocalWalletSecret: (raw) => solanaLocalWallets.revealLocalWalletSecret(raw),
+      };
+      const solanaAgentPort = createDefaultSolanaAgentPort({
+        revealLocalWalletSecret: (raw) => solanaLocalWallets.revealLocalWalletSecret(raw),
+      });
+      const clawdGatewayPort = createDefaultClawdGatewayPort({ env });
+      const runTelegramTurn = async (prompt: string): Promise<string> => {
+        const requested = requireValue(settings, "settings").settingsStore.getInferenceProvider();
+        const provider = requested === "cursor" ? "openrouter" as const : requested;
+        ensurePumpTape();
+        const agentCustomization = requireValue(settings, "settings").settingsStore.getAgentCustomization();
+        return await runRoutedProviderText(provider, [{ role: "user", content: prompt }], {
+          tools: [...OWS_ROUTED_TOOLS, ...BUNDLED_SKILL_ROUTED_TOOLS, ...pumpRoutedTools(), ...SOLANA_ROUTED_TOOLS, ...SOLANA_TRADING_ROUTED_TOOLS, ...SOLANA_AGENT_ROUTED_TOOLS, ...CLAWD_GATEWAY_ROUTED_TOOLS, ...CLOUD_BOX_ROUTED_TOOLS, ...e2bRoutedTools(), ...browserUseRoutedTools(), ...grokMediaRoutedTools(), ...birdeyeRoutedTools(), ...webRoutedTools(), ...await payboxRoutedTools()],
+          ...(agentCustomization == null ? {} : { agentCustomization }),
+          executeTool: async (definition, toolArgs) => {
+            if (isOwsTool(definition.name)) return executeOwsTool(solanaServiceMerged, definition.name, toolArgs);
+            if (isBundledSkillTool(definition.name)) return executeBundledSkillTool(definition.name, toolArgs);
+            if (isPayboxRoutedTool(definition.name)) return executePayboxRoutedTool(definition.name, toolArgs);
+            if (isSolanaRoutedTool(definition.name)) return await executeSolanaRoutedTool(solanaServiceMerged, definition.name, toolArgs);
+            if (isSolanaTradingRoutedTool(definition.name)) return await executeSolanaTradingRoutedTool(solanaTradingPort, definition.name, toolArgs);
+            if (isSolanaAgentRoutedTool(definition.name)) return await executeSolanaAgentRoutedTool(solanaAgentPort, definition.name, toolArgs);
+            if (isClawdGatewayRoutedTool(definition.name)) return await executeClawdGatewayRoutedTool(clawdGatewayPort, definition.name, toolArgs);
+            if (isCloudBoxRoutedTool(definition.name)) return await executeCloudBoxRoutedTool(definition.name, toolArgs);
+            if (isE2bRoutedTool(definition.name)) return await executeE2bRoutedTool(definition.name, toolArgs);
+            if (isBrowserUseRoutedTool(definition.name)) return await executeBrowserUseRoutedTool(definition.name, toolArgs);
+            if (isPumpRoutedTool(definition.name)) return await executePumpRoutedTool(definition.name, toolArgs);
+            if (isBirdeyeRoutedTool(definition.name)) return executeBirdeyeRoutedTool(createDefaultBirdeyePort({ env, revealSecret: key => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key) }), definition.name, toolArgs);
+            if (isGrokMediaRoutedTool(definition.name)) return await executeGrokMediaRoutedTool(definition.name, toolArgs);
+            if (isWebRoutedTool(definition.name)) return await executeWebRoutedTool(definition.name, toolArgs);
+            throw new Error(`The Telegram bridge has no local tool named ${String(definition.name)}.`);
+          },
+        });
+      };
+      const telegramBotService = createTelegramBotService({
+        revealSecret: (key) => requireValue(secretsStores, "secrets-stores").userSecretsStore.reveal(key),
+        upsertSecret: (entries) => requireValue(secretsStores, "secrets-stores").userSecretsStore.upsert(entries),
+        removeSecret: (keys) => requireValue(secretsStores, "secrets-stores").userSecretsStore.remove(keys),
+        envToken: env.TELEGRAM_BOT_TOKEN,
+        envDeepgramKey: env.DEEPGRAM_API_KEY,
+        envOpenRouterKey: env.OPENROUTER_API_KEY,
+        envVoiceModel: env.OPENROUTER_VOICE,
+        voiceGatewayUrl: env.SAND_VOICE_GATEWAY_URL,
+        runTurn: runTelegramTurn,
+      });
+      track({ dispose: () => { telegramBotService.stop(); } });
+      // Bring-your-own-bot convenience: once a token is configured the bridge
+      // goes live on every launch; opt out with SAND_TELEGRAM_AUTOSTART=0.
+      if (env.SAND_TELEGRAM_AUTOSTART !== "0") void telegramBotService.start().catch((error) => {
+        bindings.reportFailure("telegram", "autostart", error);
+      });
+      // Resume the Telegram bridge automatically on launch whenever a token is
+      // configured (saved secret or environment); without one this is a no-op.
+      void telegramBotService.start().catch(() => {});
       const base: Omit<ProductionServiceContext, "attachments" | "avatarImages" | "cursorAccount" | "ensureTranscriptionManager"> = {
         native: bindings.native, resources, env, machineId,
         isQuitting: () => quitState !== "idle",
@@ -717,6 +831,8 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         reportProblem: (area, detail) => bindings.reportFailure(area, "problem", new Error(`${area}: ${detail}`)),
         broadcast, getTrustedContents,
         settings: requireValue(settings, "settings"), secretsStores: requireValue(secretsStores, "secrets-stores"), accountLifecycle, boxRecovery: requireValue(boxRecovery, "box-recovery"),
+        solana: solanaServiceMerged,
+        telegram: telegramBotService,
         shell, windowChrome, getMainWindow: () => runtime?.getMainWindow(), requireMainEdge: () => requireValue(mainEdge, "main-edge"),
         fetchAvailableModels: async () => {
           const response = await fetchSandAvailableModels({

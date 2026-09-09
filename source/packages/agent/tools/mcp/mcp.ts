@@ -303,6 +303,7 @@ async function runSmartModeMcpPreflight(
     throw new ToolCallRejectedError(SMART_MODE_MCP_BLOCK_REASON);
   }
   if (!args.enabled) return undefined;
+  let blockReason = SMART_MODE_MCP_CLASSIFIER_ERROR_REASON;
   try {
     const executor = options.resourceAccessor.get(smartModeClassifierExecutorResource);
     const conversationContext = args.stateHandler === undefined
@@ -339,11 +340,19 @@ async function runSmartModeMcpPreflight(
       options.mcpFileSystemOptions?.workspaceProjectDir === undefined ? undefined : [options.mcpFileSystemOptions.workspaceProjectDir],
       { maxAttempts: options.smartModeClassifierMaxAttempts, suppressToolCallIdLogging: options.suppressSmartModeClassifierTelemetryIds },
     );
-    if (result.result.case !== "success" || result.result.value.decision !== SmartModeClassifierDecision.BLOCK) {
-      if (result.result.case !== "success" || result.result.value.decision !== SmartModeClassifierDecision.ALLOW) throw new ToolCallRejectedError(SMART_MODE_MCP_CLASSIFIER_ERROR_REASON);
-      return undefined;
+    if (result.result.case === "success") {
+      if (result.result.value.decision === SmartModeClassifierDecision.ALLOW) return undefined;
+      if (result.result.value.decision === SmartModeClassifierDecision.BLOCK) {
+        blockReason = result.result.value.blockReason ?? SMART_MODE_MCP_BLOCK_REASON;
+      }
     }
-    const blockReason = result.result.value.blockReason ?? SMART_MODE_MCP_BLOCK_REASON;
+  } catch (error) {
+    if (ctx.signal.aborted) throw new ToolCallAbortedError();
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    // An unavailable classifier cannot authorize a tool. Continue through the
+    // same explicit approval path used for a blocked action.
+  }
+  try {
     const targetForApproval: SmartModeApprovalTarget = {
       serverIdentifier: args.serverIdentifier,
       serverName: args.serverName,

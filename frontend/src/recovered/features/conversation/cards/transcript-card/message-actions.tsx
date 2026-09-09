@@ -18,6 +18,7 @@ import { classifySendMessageTextUrl } from "./send-message-text";
 import type { TranscriptMessage } from "../../workspace/model";
 import type { TranscriptThreadSummary } from "./thread-summary-controller";
 import { ThreadAffordance } from "./thread-affordance";
+import type { ReadAloudState } from "./read-aloud";
 
 // @evidence src/app/dist/renderer/assets/index-UbX-y3il.js#byteOffset=5084871 (message action eligibility/labels)
 // @evidence src/app/dist/renderer/assets/index-UbX-y3il.js#byteOffset=5086012 (mCn action anchor, selectors, focus lifecycle)
@@ -51,6 +52,12 @@ export interface TranscriptMessageReactionSlotProps {
 
 export type RenderTranscriptMessageReactionActions = (props: TranscriptMessageReactionSlotProps) => ReactNode;
 
+/** Read-aloud affordance state surfaced by the production host (free OpenRouter TTS). */
+export interface TranscriptCardReadAloudSlot {
+  readonly state: ReadAloudState;
+  toggle(entryId: string, text: string): void;
+}
+
 export interface TranscriptCardInteractionContext {
   readonly threadRootId: string | null;
   readonly isReadOnly: boolean;
@@ -61,6 +68,7 @@ export interface TranscriptCardInteractionContext {
   resolveEntry(targetId: string): TranscriptCardActionEntry | null;
   scrollToEntry(targetId: string): void;
   isEntryInScope(targetId: string): boolean;
+  readonly readAloud?: TranscriptCardReadAloudSlot;
 }
 
 const TranscriptCardInteractionContext = createContext<TranscriptCardInteractionContext | null>(null);
@@ -256,6 +264,15 @@ export function TranscriptCardActionAnchor({ entry, children, onCopy, isReadOnly
     setMenuOpen(false);
     if (effectiveOnCopy != null) swallowCopyFailure(effectiveOnCopy);
   };
+  const copyProjection = projectTranscriptCardCopy(entry);
+  const readAloud = context?.readAloud;
+  const readAloudActive = readAloud != null && readAloud.state.entryId === entry.id && readAloud.state.status != null;
+  const readAloudMenuItem = messageRole(entry) !== "assistant" || readAloud == null || copyProjection == null ? null : (
+    <button className="sand-message-hover-actions__button" onClick={() => { setMenuOpen(false); readAloud.toggle(entry.id, copyProjection.text); }} role="menuitem" type="button">
+      <span aria-hidden="true" data-icon-name={readAloudActive ? "stop" : "speaker-waves"} />
+      {readAloudActive ? (readAloud.state.status === "loading" ? "Loading voice…" : "Stop reading") : "Read aloud"}
+    </button>
+  );
   const child = Children.only(children);
   if (!isValidElement(child)) return <>{children}</>;
   const childWithProps = child as ReactElement<ActionChildProps>;
@@ -276,6 +293,7 @@ export function TranscriptCardActionAnchor({ entry, children, onCopy, isReadOnly
       {menuOpen && context != null ? <div aria-label="More message actions" role="menu">
         {isThreadActionVisible ? <button className="sand-message-hover-actions__button" onClick={() => { context.onThread(entry.id); setMenuOpen(false); }} role="menuitem" type="button"><span aria-hidden="true" data-icon-name="chat-bubbles" />Start a thread</button> : null}
         {effectiveOnCopy == null ? null : <button className="sand-message-hover-actions__button" onClick={copy} role="menuitem" type="button"><span aria-hidden="true" data-icon-name="copy" />Copy</button>}
+        {readAloudMenuItem}
       </div> : null}
     </div>
   );

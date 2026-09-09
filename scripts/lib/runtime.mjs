@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { chmodSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { access, cp, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import { extractAll } from "@electron/asar";
+import { extractFile, listPackage, statFile } from "@electron/asar";
 import { cacheDir, cachedRuntimeApp, sourceAppDir, upstreamAsarSha256, upstreamVersion } from "./config.mjs";
 import { capture, run } from "./process.mjs";
 import { SYSTEM_TOOLS } from "./system-tools.mjs";
@@ -49,6 +50,48 @@ export async function cacheRuntimeFromApp(source) {
   return await validateRuntimeApp(cachedRuntimeApp);
 }
 
+/** Extract an asar, skipping unpacked entries whose sibling `.unpacked` files are absent.
+ * Upstream 0.18 lists dangling npm `.bin` stubs and gyp stamps as unpacked files. */
+export function extractAsarSkippingMissingUnpacked(archive, dest) {
+  if (typeof archive !== "string" || archive.length === 0) throw new TypeError("archive path is required");
+  if (typeof dest !== "string" || dest.length === 0) throw new TypeError("destination path is required");
+  mkdirSync(dest, { recursive: true });
+  const followLinks = process.platform === "win32";
+  const unpackedRoot = `${archive}.unpacked`;
+  for (const fullPath of listPackage(archive)) {
+    const filename = fullPath.replace(/^[/\\]/, "");
+    const destFilename = path.join(dest, filename);
+    const file = statFile(archive, filename, followLinks);
+    if ("files" in file) {
+      mkdirSync(destFilename, { recursive: true });
+      continue;
+    }
+    mkdirSync(path.dirname(destFilename), { recursive: true });
+    if ("link" in file) {
+      const linkSrcPath = path.dirname(path.join(dest, file.link));
+      const linkDestPath = path.dirname(destFilename);
+      const relativePath = path.relative(linkDestPath, linkSrcPath);
+      try { unlinkSync(destFilename); } catch { /* dest may not exist yet */ }
+      const linkTo = path.join(relativePath, path.basename(file.link));
+      if (path.relative(dest, linkSrcPath).startsWith("..")) {
+        throw new Error(`${fullPath}: file "${file.link}" links out of the package`);
+      }
+      symlinkSync(linkTo, destFilename);
+      continue;
+    }
+    try {
+      const content = file.unpacked
+        ? readFileSync(path.join(unpackedRoot, filename))
+        : extractFile(archive, filename, followLinks);
+      writeFileSync(destFilename, content);
+      if (file.executable) chmodSync(destFilename, 0o755);
+    } catch (error) {
+      if (file.unpacked && error && error.code === "ENOENT") continue;
+      throw error;
+    }
+  }
+}
+
 export async function hydrateSourcePayloadFromAsar(archive, {
   destination = sourceAppDir,
   expectedSha256 = upstreamAsarSha256,
@@ -63,7 +106,7 @@ export async function hydrateSourcePayloadFromAsar(archive, {
   await mkdir(hydrationRoot, { recursive: true });
   const temporary = await mkdtemp(path.join(hydrationRoot, "grok-bot-018-"));
   try {
-    extractAll(archive, temporary);
+    extractAsarSkippingMissingUnpacked(archive, temporary);
     for (const required of [
       "dist/electron-main/main.cjs",
       "dist/host/host-main.cjs",

@@ -1,4 +1,29 @@
-# Publishing checklist
+# Publishing Clawd Bot
+
+Publish the standalone app from `clawd/`. Its source export and package checks
+are separate from the parent runtime's historical clean-branch export.
+
+## Standalone Clawd Bot source
+
+Run from `clawd/`:
+
+```sh
+npm run publication:check
+npm run publication:export -- /path/to/new-clawd-bot-export
+```
+
+Use a destination that does not exist. The export copies publishable working-tree
+sources without Git history; it is not a build, release upload, or notarization.
+Review the exported files and retained notices before initializing a new repository.
+See the [Clawd Bot publication guide](../clawd/README.md#github-publication)
+and [validation notes](../clawd/docs/validation.md) for application checks.
+
+Use **Clawd Bot** for release titles and product copy. Preserve third-party
+names in provenance, license notices, provider IDs, and compatibility settings.
+Use the [documentation assets](assets/README.md) for illustrations; do not present
+a routing diagram as a screenshot or evidence of a working deployment.
+
+## Parent runtime export
 
 The `codex/clean` branch removes generated recovery material from its tree, but
 its parent commit still contains that material. Do not push the branch and
@@ -11,7 +36,7 @@ git archive --format=tar codex/clean | tar -xf - -C /path/to/empty-export
 cd /path/to/empty-export
 git init
 git add .
-git commit -m "Initial reconstructed source import"
+git commit -m "Initial Clawd Bot parent runtime source import"
 ```
 
 The preserved installers use Git LFS. Install LFS before the initial `git add`,
@@ -20,7 +45,7 @@ then push the objects after adding the remote:
 ```sh
 git lfs install
 git add .
-git commit -m "Initial reconstructed source import"
+git commit -m "Initial Clawd Bot parent runtime source import"
 git push -u origin main
 git lfs push --all origin
 ```

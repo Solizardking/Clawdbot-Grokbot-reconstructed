@@ -1,10 +1,15 @@
-import { outputApp } from "./lib/config.mjs";
-import { runNativeE2E } from "./native-e2e-check.mjs";
+import { outputApp, repoRoot } from "./lib/config.mjs";
+import { launchPackagedApp } from "./native-e2e-check.mjs";
+import { run } from "./lib/process.mjs";
+import path from "node:path";
 
-const report = await runNativeE2E({
+// The default package uses a checksum-pinned renderer plus reviewed extensions.
+// Verify its full composition before launch; the clean-renderer E2E command
+// retains its stricter clean-source-only contract for diagnostic candidates.
+await run(process.execPath, [path.join(repoRoot, "scripts/verify.mjs"), "--app", outputApp]);
+const report = await launchPackagedApp({
   appPath: outputApp,
-  payloadPath: outputApp,
-  structuralOnly: false,
+  productionStartup: false,
   timeoutMs: 12_000,
 });
 

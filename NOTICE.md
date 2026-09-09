@@ -13,3 +13,18 @@ third-party dependency, and service-terms obligations.
 The repository preserves pinned Grok Bot 0.18.0 macOS and Windows installers
 through Git LFS for research continuity. Those artifacts remain subject to their
 own terms and are not covered by any license applied to reconstructed code.
+
+## PayBox integration
+
+The bundled `plugins/paybox/skills` and connector metadata originate from the
+user-supplied PayBox plugin, copyright (c) 2026 MoonPay, licensed under MIT.
+The full license is retained at `plugins/paybox/LICENSE`. Runtime instructions
+embed the three skill texts. The runtime also depends on `@paybox-sh/sdk`
+(version 0.8.5); its distributed license remains with the installed package.
+
+The bundled `plugins/trading/skills` folders (and their support files) are
+copied from the local go-bot skill library. Each skill keeps the license in
+its own `SKILL.md` or `LICENSE` when present.
+
+Solana address and private-key decoding follow Trust Wallet Core's Solana
+`Address` and `Entry` (Apache-2.0).

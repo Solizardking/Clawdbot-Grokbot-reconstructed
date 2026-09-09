@@ -246,6 +246,7 @@ export interface TurnToolsetTurnInput {
   readonly endThisRunAwaitingUser?: (reason: string) => void;
   /** Per-turn MCP descriptors used by the generated discovery/call pair. */
   readonly mcpTools?: readonly McpToolForMeta[];
+  readonly mcp?: ProductionTurnToolInputs["mcp"];
   /** Optional live Shell Smart Mode identities, supplied per turn by the host. */
   readonly shellAutoReview?: {
     readonly host?: TurnShellAutoReviewInput;

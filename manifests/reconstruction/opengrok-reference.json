@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 1,
+  "reference": "opengrok-main",
+  "targetAreas": [
+    "deploy",
+    "deploy/telegram-bridge",
+    "dist",
+    "docs",
+    "frontend",
+    "manifests",
+    "patches",
+    "research-archives",
+    "scripts",
+    "services",
+    "source",
+    "src",
+    "tests"
+  ],
+  "referenceFiles": [
+    {
+      "path": "assets/banner.svg",
+      "bytes": 2260,
+      "sha256": "fa8ca08232c5567c49429bad1473542a8dfdb1b8ee0dd68053bd653de5748f16"
+    },
+    {
+      "path": "assets/hero.png",
+      "bytes": 1004877,
+      "sha256": "bf33bc5f03d65ce25d2cea100019a0fa621a0d90b48f382bf0b0328df0c78903"
+    },
+    {
+      "path": "assets/observatory.png",
+      "bytes": 809140,
+      "sha256": "ccbe9b210e853ae9460e62e2926d114f9bb6f861b8e3c05fb2339aa17484894c"
+    },
+    {
+      "path": "assets/social-preview.png",
+      "bytes": 1128096,
+      "sha256": "97187ba8ca8125d8bc6186fef3c754bf7dace4215459e9ee7db7f5831ae91676"
+    },
+    {
+      "path": "assets/social-preview.svg",
+      "bytes": 4047,
+      "sha256": "3ad59f0e0e7f3ef3c7e36e86b7e60cb8786cd82c3443a3c7ea467feb2daba3e2"
+    },
+    {
+      "path": "assets/src/hero.html",
+      "bytes": 9295,
+      "sha256": "1aefc1ff7e91af467798bbd494bddf3e4421661c477ddff1c77f14eff2bd754e"
+    },
+    {
+      "path": "assets/src/observatory.html",
+      "bytes": 10053,
+      "sha256": "40c07f1172cf4efa1608ea77a21dc5b7d6573c09ab8d592d6878299debc46eb1"
+    },
+    {
+      "path": "box/hud/liquidglass.js",
+      "bytes": 55575,
+      "sha256": "5063e3e9eab96614393aedbd2b10fc87d08a5b147f7f9d07587cf3df814b7c44"
+    },
+    {
+      "path": "box/hud/sanitize-liquidglass.cjs",
+      "bytes": 2747,
+      "sha256": "6d369ce2c0063c9c78650414de5d996ca37b2efcd174503e9b4882fe3352d2fa"
+    },
+    {
+      "path": "box/hud/test-liquidglass.cjs",
+      "bytes": 10714,
+      "sha256": "cc37612a785f969d97e28a370e919f62115770a073c419f36d1243f82db3fb52"
+    },
+    {
+      "path": "box/openai-hop-session.cjs",
+      "bytes": 75122,
+      "sha256": "87c4a92cd69e62d755264bf602fc208793412c759f80e8fe712c2353ae1a641a"
+    },
+    {
+      "path": "box/test/run-all.cjs",
+      "bytes": 1498,
+      "sha256": "9677f5fd729ae1ee2994a949fd5ef26dce17d9ac56342ff353e2bbef0d712064"
+    },
+    {
+      "path": "box/test/test-hop-install.cjs",
+      "bytes": 7842,
+      "sha256": "c12e565dace4935dcdab60b9c2713fd58c14275ad6dd91414829bba9cf4803e1"
+    },
+    {
+      "path": "box/test/test-m1-context-guardian.cjs",
+      "bytes": 12647,
+      "sha256": "5f21e99a4c96b35de7361eaea3f1c4bb76a2bc83e08adec41615d5fd53ef63e8"
+    },
+    {
+      "path": "box/test/test-m2-adversarial-node.cjs",
+      "bytes": 5400,
+      "sha256": "de7b583690eb53e3a7f4a66a46bc12b0b12a5fe6190b4f5171f88a6add76bef7"
+    },
+    {
+      "path": "box/test/test-m2-empirical-node.cjs",
+      "bytes": 5251,
+      "sha256": "e7e563bb36e398b426faec51e417541a8ac9a47351aab4d220d4803178dc46ea"
+    },
+    {
+      "path": "box/test/test-m2-full.cjs",
+      "bytes": 21738,
+      "sha256": "ef66972d0ff4eb6e75a147483d6998973a252fd39b21945d19e8070919d85d62"
+    },
+    {
+      "path": "box/test/test-m4-empirical-challenger.cjs",
+      "bytes": 26431,
+      "sha256": "2d656c0fa698986d78f95b6bcb98ca1f0c2490d7bb713eadad043e9e6f65f3cc"
+    },
+    {
+      "path": "box/test/test-m4-empirical-node.cjs",
+      "bytes": 25285,
+      "sha256": "0ff21bbba4c32f61b0c05334c86bacfe88fb435fefb74f34ecc8ec5e88789cc2"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "bytes": 2122,
+      "sha256": "13da0fe770dca2fd57998bc1e5d53d82327d4836f681193dbbbc1da46a280691"
+    },
+    {
+      "path": "docs/BOX-INTEGRATION.md",
+      "bytes": 3699,
+      "sha256": "855bd831ac25acab7bd4a3f0b621fa0e63099490e1e7b7dcbf661f7ebc38441a"
+    },
+    {
+      "path": "docs/BYOK-DECISION.md",
+      "bytes": 2051,
+      "sha256": "432e8eb377affafea3489ac6cd7a0680d3384b869f4f7070832d9b9fc4197911"
+    },
+    {
+      "path": "docs/CLOUD-HOST.md",
+      "bytes": 6926,
+      "sha256": "1b7db2af7b8b75a4a7917321afd8deb361b0c69ff1c88c37ef4a9ae428d09143"
+    },
+    {
+      "path": "docs/CODEX-EVERYWHERE.md",
+      "bytes": 2607,
+      "sha256": "cb5e01641c30f6b393bfb4a72cec05f698bfaf41c1e40414a2f5603037a1a2c0"
+    },
+    {
+      "path": "docs/FAILURE-MODES.md",
+      "bytes": 7509,
+      "sha256": "5e9a3a35cf10f8a92c802af4495c5fcaaf83373e77fdbfd8609698ac590f2fb8"
+    },
+    {
+      "path": "docs/MODEL-GUIDELINES.md",
+      "bytes": 9953,
+      "sha256": "75db22e2af65d363746d88fdce2450005a108ed3704585233bae02481338b25d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "bytes": 2117,
+      "sha256": "eea9cc4230c9eb16b7fb5bdd5864fedd77eb1148c0bad4f6a0bb4edfce8fd547"
+    },
+    {
+      "path": "docs/TESTING.md",
+      "bytes": 3039,
+      "sha256": "f3599fa946cfb20b5076e8ab4ad67c7770fc3f9fd612b9d45d90bd4388fe7c16"
+    },
+    {
+      "path": "examples/hop-health-snapshot.example.json",
+      "bytes": 1987,
+      "sha256": "f0a11bb92862d517532ae8feaeed3366df3cfec64ce47aeeb7c04978f889bc64"
+    },
+    {
+      "path": "examples/model-bindings.example.json",
+      "bytes": 2089,
+      "sha256": "f4a7f8173e608940d6a5abee6a84330a2d2d6ac3a99a0b66fa12dbd9e36b66ba"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1065,
+      "sha256": "cb3fa66e97227c998725f80bb20e7e76a69df5224494766c0e0c6bc31184dbce"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10152,
+      "sha256": "cbd7c44641b61d614a49c1150994c4bfe9450c2697f9722f4a6078fee3388028"
+    },
+    {
+      "path": "setup.py",
+      "bytes": 9022,
+      "sha256": "56e1b20aec586abf7a59afdbe02b2734cfc34fa9294651fe6e6598b5a64fcaf0"
+    },
+    {
+      "path": "tools/apply-box-patch.py",
+      "bytes": 10761,
+      "sha256": "bd97bb6f004f870c27c5907c14a461bd9e41e05d959db17999f59adb3f435dad"
+    },
+    {
+      "path": "tools/codex-everywhere-bridge.py",
+      "bytes": 17685,
+      "sha256": "0465b4055204e697edba9bcd7e1dcb0c5d43a1de89b46141e800f4a31e25af69"
+    },
+    {
+      "path": "tools/doctor.py",
+      "bytes": 15951,
+      "sha256": "4b8ad095a981852ac4f32ee2bbbcc9d2692215d2ffc229c112ecbd7d4b2712c5"
+    },
+    {
+      "path": "tools/file-relay.py",
+      "bytes": 4229,
+      "sha256": "2d7ca1db00f8a9ebf61f7969d5b0aa42072b81b438aae8de07673ad646de53da"
+    },
+    {
+      "path": "tools/hop-server.py",
+      "bytes": 7121,
+      "sha256": "156962976248d6305b249490f6279b908b362c5f66e653591444fd921cf5e3ee"
+    },
+    {
+      "path": "tools/model-picker.py",
+      "bytes": 16352,
+      "sha256": "e1dae6f3051bc3a5d0250cc4c7971da27d14c919513904f71149ff897b1a2fcb"
+    },
+    {
+      "path": "tools/openai-hop-install.py",
+      "bytes": 9859,
+      "sha256": "98bae69e828144d12b15965d6a0417a5935c44a73b82ad9b77b6d77b1f4d2a2d"
+    },
+    {
+      "path": "tools/provider-maps-hop.cjs",
+      "bytes": 14351,
+      "sha256": "c77a264a80bbf91e3f4524a50825a3605acc4b8b2ec05ebdbdf77b29a1781230"
+    },
+    {
+      "path": "tools/provider-maps.cjs",
+      "bytes": 15563,
+      "sha256": "0e90e66fdaa06311d8dca10c043bef4d2b79ca1a31f33732cf47bf84870fc64e"
+    },
+    {
+      "path": "tools/qa.py",
+      "bytes": 4929,
+      "sha256": "893397d143a498cb3c34c0ecb79de581b7d56112e8394f91c0a43f7a7900ea56"
+    },
+    {
+      "path": "tools/test-codex-everywhere-bridge.py",
+      "bytes": 5863,
+      "sha256": "8c134a399128ca7ffc8c8f97a91eb569053585c01c8f1569c05a932757284318"
+    },
+    {
+      "path": "tools/test-provider-maps-hop.cjs",
+      "bytes": 3008,
+      "sha256": "36dc368cd83773bbb012ab331f5a2c4cf50dd8363849f3600e7c489f2fbceb54"
+    },
+    {
+      "path": "tools/test-provider-maps.cjs",
+      "bytes": 8044,
+      "sha256": "5efada5841b6109f3371a5b7b60f96575783f0434eeee13467ce812302d97464"
+    },
+    {
+      "path": "tools/wire-probe.py",
+      "bytes": 6519,
+      "sha256": "ef4d4f85b19b638792a9ab569b88ab294c743ed80c883bd2109205cc2bc26fb6"
+    },
+    {
+      "path": "voice/AUDIO_CONTRACT.md",
+      "bytes": 1650,
+      "sha256": "ce9793e00387ee0398bff5fec7f65ca4b8fa5798a094c5e218c64f5bcf87b071"
+    },
+    {
+      "path": "voice/captain.cjs",
+      "bytes": 35953,
+      "sha256": "2b219b91e67b482cf0a160074ac88b17decd1493eedcfa8957a39af55204f446"
+    },
+    {
+      "path": "voice/CONSULT_API.md",
+      "bytes": 1683,
+      "sha256": "756ce978d62e6fad9360d02e2de37030d39616e178d2d10f7fedf6b501295148"
+    },
+    {
+      "path": "voice/consult-gateway.cjs",
+      "bytes": 4773,
+      "sha256": "2e068135dff0825d0237b98dbddc6355dd3adc796f3026272bb904bb53a58eb8"
+    },
+    {
+      "path": "voice/doctor.js",
+      "bytes": 4542,
+      "sha256": "a82a56b5438aeb9db8f25f76ca3c142715e6af317d54081109f5a1d9e2f43c4e"
+    },
+    {
+      "path": "voice/ears.cjs",
+      "bytes": 18963,
+      "sha256": "dcdd8f6c71af62bd9774c138905925fbe0c0bc851e6ba004159ccde3d8fda363"
+    },
+    {
+      "path": "voice/lib/consult-bus.cjs",
+      "bytes": 4795,
+      "sha256": "92d78bd39fda70accf79460bc595140e997d1b46b1a064ac415f076134d67559"
+    },
+    {
+      "path": "voice/lib/shared.cjs",
+      "bytes": 8904,
+      "sha256": "9ad17d574f5ff0023a3646dfb836909d1afa2c1259394511ac53315b6f6f02c0"
+    },
+    {
+      "path": "voice/lib/ws-raw.cjs",
+      "bytes": 4104,
+      "sha256": "b6782e00264d5b373fb1df0b118496baa84ccc286c32a75aa7aebad681cb5d56"
+    },
+    {
+      "path": "voice/mouth.cjs",
+      "bytes": 6461,
+      "sha256": "1753afd65d45491f3b44ba1dab3ad8f46d785e30d1165e3b54477ce3b7e2d292"
+    },
+    {
+      "path": "voice/panel/index.html",
+      "bytes": 12452,
+      "sha256": "fd050b639b56273efa26662b0dd641c937891f88c3be936c15a3802b7f64c496"
+    },
+    {
+      "path": "voice/panel/server.js",
+      "bytes": 2138,
+      "sha256": "524448c9972f8b955d6f045bea8dbc1f8ea92110df1d5408164528cb1ad07aef"
+    },
+    {
+      "path": "voice/README.md",
+      "bytes": 1832,
+      "sha256": "476a82026164694cab98a1ec2bfe114e7d6a3b9057082ac62080298087b880b7"
+    },
+    {
+      "path": "voice/scripts/leak-scan.js",
+      "bytes": 2457,
+      "sha256": "2c25abade95471abd5603e32635588ada0704899e7050e40652e273b4eb6bd59"
+    },
+    {
+      "path": "voice/scripts/start-voice.ps1",
+      "bytes": 3554,
+      "sha256": "2437d5f899ebb60541c5d1cd0b4afbe94867729351ea2280863cef8e8a680724"
+    },
+    {
+      "path": "voice/scripts/stop-voice.ps1",
+      "bytes": 580,
+      "sha256": "1afde60b1a52aa6ccfc61c96b3808f7babe43db4f2d37a979d2d56846518280d"
+    },
+    {
+      "path": "voice/SETUP.md",
+      "bytes": 5012,
+      "sha256": "c5b6760a0ca852a3223ede878427979eee7a0abd1286fec0830aa273e075ff7d"
+    },
+    {
+      "path": "voice/supervisor.cjs",
+      "bytes": 16176,
+      "sha256": "a3ef0db4d9687a6459773d79a6631eb3895f3ae31e05bb3b3a9be659bdff16b3"
+    },
+    {
+      "path": "voice/watchdog-v5.cjs",
+      "bytes": 6147,
+      "sha256": "3116844b6c9fcd19c19d2e713b3b67939abddcffecb5dc1ad4da597a5c7200c0"
+    },
+    {
+      "path": "wire-captures/glm-5.3-flash/capture.json",
+      "bytes": 9213,
+      "sha256": "66208504c4e5cdaff2e30f27e5efe05709c03c02209c1a542ef1bc665478a356"
+    },
+    {
+      "path": "wire-captures/glm-5.3-flash/verdict.json",
+      "bytes": 313,
+      "sha256": "0658901a0d541d376c2ae653f894eaa07e591ce4ce15c2e7694f2bb71e2de82a"
+    },
+    {
+      "path": "wire-captures/README.md",
+      "bytes": 1711,
+      "sha256": "63f4fced3b087440bea3e2344b93764d361d41148386e7e6b705142d2ec3761a"
+    }
+  ]
+}

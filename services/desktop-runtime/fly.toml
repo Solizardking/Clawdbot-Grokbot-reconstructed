@@ -1,0 +1,33 @@
+app = "grok-runtime-owner-8bit"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = 15
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SAND_HOSTED_GATEWAY_URL = "https://grok-provider-gateway-8bit.fly.dev"
+  SAND_HOSTED_DEFAULT_MODEL = "openrouter/free"
+
+[[mounts]]
+  source = "runtime_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 1340
+  force_https = false
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"

@@ -9,7 +9,7 @@ node_modules/
 /work/
 .DS_Store
 *.log
-
+.env.local
 # Machine-local harness and inspection scratch.
 /.tmp*/
 /.grok-*/
@@ -21,6 +21,11 @@ node_modules/
 /.openrouter-probe.*/
 /.router-*/
 
+# Orgo cloud-computer agent local state (API key, ids, screenshots).
+/scripts/orgo/.env
+/scripts/orgo/.state.json
+/scripts/orgo/out/
+
 # One-off extracted bundle copies at the repository root. Canonical payloads
 # live under src/app/dist and recovered/frontend.
 /host-main.cjs
@@ -30,3 +35,56 @@ node_modules/
 /mermaid.core-*.js
 /xlsx-*.js
 /index.html
+
+# Local Worker secrets. Never commit values.
+**/.dev.vars
+**/.dev.vars.production
+
+# Adapted Clawd Bot build output (source under clawd/ is tracked).
+/clawd/dist-ui/
+/clawd/dist-server/
+/clawd/dist-companion/
+/clawd/node_modules/
+/clawd/release/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+
+# Private configuration and credential material at every directory depth.
+*.env
+*.env.*
+.env*
+.dev.vars*
+!.env.example
+!.env.template
+!.env.sample
+!*.env.example
+!*.env.template
+!*.env.sample
+!.dev.vars.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_ed25519
+*-keypair.json
+*_keypair.json
+keypair.json
+wallet.json
+service-account*.json
+credentials.json
+*_api_key.txt
+*_secret.txt
+*.secret.json
+*.sqlite*
+*.db
+*.db-wal
+*.db-shm
+/clawd/work/

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="360" viewBox="0 0 1100 360" role="img" aria-labelledby="flow-title flow-desc">
+  <title id="flow-title">Clawd Bot — local agents, connected tools</title>
+  <desc id="flow-desc">Animated architecture connecting the desktop workspace to inference, computers, Solana tools, and the iOS companion. Motion stops for reduced-motion preferences.</desc>
+  <defs>
+    <linearGradient id="flow-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101529"/>
+      <stop offset="1" stop-color="#25143b"/>
+    </linearGradient>
+    <linearGradient id="flow-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a58aff"/>
+      <stop offset="1" stop-color="#72edc3"/>
+    </linearGradient>
+  </defs>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; fill: #f4efff; }
+    .muted { fill: #b9b4ce; }
+    .route { fill: none; stroke: url(#flow-line); stroke-width: 2.2; stroke-dasharray: 5 10; animation: flow 3s linear infinite; }
+    .pulse { fill: #72edc3; animation: pulse 3s ease-in-out infinite; }
+    .mascot { animation: bob 2.6s ease-in-out infinite; transform-origin: 86px 214px; }
+    @keyframes flow { to { stroke-dashoffset: -60; } }
+    @keyframes pulse { 50% { opacity: .35; } }
+    @keyframes bob { 50% { transform: translateY(-4px); } }
+    @media (prefers-reduced-motion: reduce) {
+      .route, .pulse, .mascot { animation: none; }
+    }
+  </style>
+  <rect width="1100" height="360" rx="22" fill="url(#flow-bg)"/>
+  <text x="40" y="42" font-size="12" letter-spacing="3" class="muted">CLAWD BOT / LOCAL-FIRST AGENT WORKSPACE</text>
+  <text x="40" y="88" font-size="36" font-weight="700">Local agents. Connected tools.</text>
+  <text x="40" y="118" font-size="15" class="muted">Route intelligence · run computers · pair iOS · build on Solana</text>
+
+  <path class="route" d="M310 230 H455 V188 H640"/>
+  <path class="route" d="M455 230 H640"/>
+  <path class="route" d="M455 230 V272 H640"/>
+  <path class="route" d="M455 230 V318 H640"/>
+
+  <g class="mascot">
+    <polygon points="64,188 108,210 64,248 72,214" fill="#6d4aff"/>
+    <circle cx="90" cy="214" r="5" fill="#15101f"/>
+    <circle cx="100" cy="218" r="5" fill="#15101f"/>
+    <path d="M86 228 Q95 234 104 228" fill="none" stroke="#f4efff" stroke-width="1.6"/>
+  </g>
+
+  <rect x="40" y="168" width="270" height="100" rx="14" fill="#181e35" stroke="#6f628e"/>
+  <circle class="pulse" cx="66" cy="198" r="6"/>
+  <text x="84" y="204" font-size="17" font-weight="700">DESKTOP WORKSPACE</text>
+  <text x="60" y="232" font-size="13" class="muted">Clawd Bot · Electron · sidecar</text>
+  <text x="60" y="252" font-size="12" class="muted">loopback harness :8799</text>
+
+  <g font-size="14">
+    <rect x="640" y="168" width="420" height="40" rx="10" fill="#302544"/>
+    <text x="658" y="194">INFERENCE / Cursor · Claude · Codex · OpenRouter · xAI</text>
+    <rect x="640" y="212" width="420" height="40" rx="10" fill="#302544"/>
+    <text x="658" y="238">COMPUTERS / E2B · Browser Use · Docker · this Mac</text>
+    <rect x="640" y="256" width="420" height="40" rx="10" fill="#302544"/>
+    <text x="658" y="282">TOOLS / Solana · media · Telegram · Composio</text>
+    <rect x="640" y="300" width="420" height="40" rx="10" fill="#1d2a28" stroke="#3ee6b0"/>
+    <text x="658" y="326">PHONE / iOS companion · LAN · Tailscale · hosted HTTPS</text>
+  </g>
+  <text x="40" y="344" font-size="11" class="muted">Architecture illustration • provider accounts and pairing are required for live tools</text>
+</svg>

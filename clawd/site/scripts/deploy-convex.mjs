@@ -1,0 +1,12 @@
+import {readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const envFile=fileURLToPath(new URL('../../../.cache/clawd-site-credentials/dedicated-convex.env',import.meta.url));
+const text=await readFile(envFile,'utf8');
+const key=text.match(/^CONVEX_DEPLOY_KEY=(.+)$/m)?.[1];
+if(!key?.startsWith('prod:hushed-ocelot-930|'))throw new Error('Refusing to deploy Clawd website to a different Convex deployment');
+const env={...process.env,CONVEX_DEPLOY_KEY:key};
+delete env.CONVEX_DEPLOYMENT;delete env.CONVEX_DEPLOYMENT_TOKEN;delete env.CONVEX_SELF_HOSTED_URL;delete env.CONVEX_SELF_HOSTED_ADMIN_KEY;
+const result=spawnSync(process.execPath,['node_modules/convex/bin/main.js','deploy','--typecheck','enable',...process.argv.slice(2)],{cwd:root,env,stdio:'inherit'});
+process.exit(result.status??1);

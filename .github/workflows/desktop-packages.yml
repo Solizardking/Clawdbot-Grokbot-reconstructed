@@ -1,0 +1,50 @@
+name: Desktop packages
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'clawd/**'
+      - '.github/workflows/desktop-packages.yml'
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            unpacked: win-unpacked
+          - os: ubuntu-24.04
+            target: linux
+            unpacked: linux-unpacked
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: clawd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.5.0
+          cache: npm
+          cache-dependency-path: clawd/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm test
+      - run: npm run package:${{ matrix.target }} -- --skip-build
+      - name: Start server from the actual package
+        run: npm run test:packaged
+        env:
+          OMB_SMOKE_DIST: release/${{ matrix.unpacked }}/resources/server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClawdBot-${{ matrix.target }}-x64
+          if-no-files-found: error
+          path: |
+            clawd/release/*.exe
+            clawd/release/*.zip
+            clawd/release/*.AppImage
+            clawd/release/*.deb

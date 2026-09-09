@@ -1,0 +1,44 @@
+{
+  "name": "clawd-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "convex:dev": "convex dev",
+    "convex:deploy": "node scripts/deploy-convex.mjs"
+  },
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "dependencies": {
+    "@solana-mobile/wallet-standard-mobile": "0.6.0",
+    "@solana/kit": "5.5.1",
+    "@solana/wallet-standard-features": "1.4.0",
+    "@solana/wallet-standard-util": "1.1.3",
+    "@wallet-standard/app": "1.1.1",
+    "@x402/core": "2.25.0",
+    "@x402/next": "2.25.0",
+    "@x402/svm": "2.25.0",
+    "bs58": "6.0.0",
+    "convex": "1.45.0",
+    "jose": "6.2.12",
+    "lucide-react": "1.43.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tweetnacl": "1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "convex-test": "0.0.56",
+    "typescript": "5.9.3",
+    "vitest": "5.0.0"
+  }
+}

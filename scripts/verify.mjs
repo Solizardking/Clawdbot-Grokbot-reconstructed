@@ -177,13 +177,78 @@ if (rendererComposition?.mode === "clean-source") {
   if (rendererProvenance.schemaVersion !== 1 || rendererProvenance.mode !== rendererComposition.mode || rendererProvenance.upstreamAppAsarSha256 !== upstreamAsarSha256) throw new Error("Packaged artifact renderer provenance has the wrong identity.");
   if (acceptance?.verdict !== "verified" || acceptance.provenance !== rendererProvenancePath || acceptance.fileCount !== rendererProvenance.fileCount || acceptance.inventorySha256 !== rendererProvenance.inventorySha256) throw new Error("Packaged artifact renderer acceptance does not match its provenance.");
   if (!Array.isArray(rendererProvenance.files) || rendererProvenance.files.length !== rendererProvenance.fileCount) throw new Error("Packaged artifact renderer provenance has an invalid file inventory.");
+  const validDigest = value => typeof value === "object" && value != null && Number.isInteger(value.bytes) && typeof value.sha256 === "string" && /^[0-9a-f]{64}$/.test(value.sha256);
+  const readExtensionManifest = extensionPath => {
+    try {
+      return JSON.parse(extractFile(builtAsar, extensionPath).toString("utf8"));
+    } catch (error) {
+      if (!(error instanceof Error) || !/not found in archive|Cannot find/.test(error.message)) throw error;
+      return null;
+    }
+  };
+  const extensionRelative = row => typeof row?.path === "string" && row.path.startsWith("dist/renderer/") ? row.path.slice("dist/renderer/".length) : null;
+  const routerChunkSteps = new Map();
+  const routerManifest = readExtensionManifest("dist/renderer-router-extension.json");
+  if (routerManifest != null) {
+    if (routerManifest.schemaVersion !== 1 || !Array.isArray(routerManifest.chunks)) throw new Error("Packaged renderer router extension manifest is invalid.");
+    for (const row of routerManifest.chunks) {
+      const relative = extensionRelative(row);
+      if (relative == null || !validDigest(row.original) || !validDigest(row.patched)) throw new Error("Packaged renderer router extension chunk record is invalid.");
+      if (!routerChunkSteps.has(relative)) routerChunkSteps.set(relative, []);
+      routerChunkSteps.get(relative).push({ original: row.original, patched: row.patched });
+    }
+  }
+  const solanaChunkRecords = new Map();
+  const solanaRebrandHashes = new Map();
+  const solanaManifest = readExtensionManifest("dist/renderer-solana-extension.json");
+  if (solanaManifest != null) {
+    if (solanaManifest.schemaVersion !== 1 || !Array.isArray(solanaManifest.chunks)) throw new Error("Packaged renderer solana extension manifest is invalid.");
+    for (const row of solanaManifest.chunks) {
+      const relative = extensionRelative(row);
+      if (relative == null || !validDigest(row.original) || !validDigest(row.patched)) throw new Error("Packaged renderer solana extension chunk record is invalid.");
+      solanaChunkRecords.set(relative, { original: row.original, patched: row.patched });
+    }
+    for (const row of Array.isArray(solanaManifest.rebrand) ? solanaManifest.rebrand : []) {
+      const relative = extensionRelative(row);
+      if (relative == null || !validDigest(row.patched)) throw new Error("Packaged renderer solana extension rebrand record is invalid.");
+      solanaRebrandHashes.set(relative, row.patched);
+    }
+  }
   const declaredPaths = new Set();
+  const readAloudChunks = new Map();
+  const readAloudManifest = readExtensionManifest("dist/renderer-read-aloud-extension.json");
+  if (readAloudManifest != null) {
+    if (readAloudManifest.schemaVersion !== 1 || readAloudManifest.mode !== "original-renderer-read-aloud" || !Array.isArray(readAloudManifest.chunks)) throw new Error("Packaged read-aloud extension manifest is invalid.");
+    for (const row of readAloudManifest.chunks) {
+      const relative = extensionRelative(row);
+      if (relative == null || readAloudChunks.has(relative) || !validDigest(row.original) || !validDigest(row.patched)) throw new Error("Packaged read-aloud chunk record is invalid.");
+      readAloudChunks.set(relative, row);
+    }
+  }
   for (const file of rendererProvenance.files) {
     if (typeof file.path !== "string" || declaredPaths.has(file.path)) throw new Error("Packaged artifact renderer provenance contains a missing or duplicate path.");
     declaredPaths.add(file.path);
+    let wanted = { bytes: file.bytes, sha256: file.sha256 };
+    for (const step of routerChunkSteps.get(file.path) ?? []) {
+      if (step.original.bytes !== wanted.bytes || step.original.sha256 !== wanted.sha256) throw new Error(`Packaged renderer extension chain drift at ${file.path}`);
+      wanted = step.patched;
+    }
+    const solanaChunk = solanaChunkRecords.get(file.path);
+    if (solanaChunk != null) {
+      if (solanaChunk.original.bytes !== wanted.bytes || solanaChunk.original.sha256 !== wanted.sha256) throw new Error(`Packaged renderer extension chain drift at ${file.path}`);
+      wanted = solanaChunk.patched;
+    } else if (solanaRebrandHashes.has(file.path)) {
+      wanted = solanaRebrandHashes.get(file.path);
+    }
+    const readAloudChunk = readAloudChunks.get(file.path);
+    if (readAloudChunk != null) {
+      if (readAloudChunk.original.bytes !== wanted.bytes || readAloudChunk.original.sha256 !== wanted.sha256) throw new Error(`Packaged read-aloud extension chain drift at ${file.path}`);
+      wanted = readAloudChunk.patched;
+    }
     const bytes = extractFile(builtAsar, `dist/renderer/${file.path}`);
-    if (bytes.byteLength !== file.bytes || sha256(bytes) !== file.sha256) throw new Error(`Packaged artifact renderer differs from its checksum inventory: ${file.path}`);
+    if (bytes.byteLength !== wanted.bytes || sha256(bytes) !== wanted.sha256) throw new Error(`Packaged artifact renderer differs from its checksum inventory: ${file.path}`);
   }
+  if ([...readAloudChunks.keys()].some(file => !declaredPaths.has(file))) throw new Error("Read-aloud extension refers to an undeclared renderer file.");
   const packagedPaths = rendererListing.filter(entry => entry.startsWith("dist/renderer/")).map(entry => entry.slice("dist/renderer/".length)).filter(Boolean);
   const undeclaredFiles = packagedPaths.filter(candidate => !declaredPaths.has(candidate) && ![...declaredPaths].some(file => file.startsWith(`${candidate}/`)));
   if (undeclaredFiles.length > 0 || [...declaredPaths].some(file => !packagedPaths.includes(file))) throw new Error("Packaged artifact renderer contains undeclared or missing files.");

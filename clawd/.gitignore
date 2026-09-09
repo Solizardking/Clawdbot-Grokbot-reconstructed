@@ -1,0 +1,54 @@
+node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/dist/
+build/
+dist/
+coverage/
+.trickshot-cache/
+.DS_Store
+*.log
+.env*
+!.env.example
+.env
+.vercel
+
+# x402 agent wallet store (local dev fallback; Fly uses a volume)
+.x402-agents.json
+.airdrop-signups.json
+data/composio-events/
+
+solgpt_-_CLI_Quickstart-oauth-credentials.txt
+
+# Solana / Anchor
+target/
+**/*-keypair.json
+
+# Reproducible outputs and local credentials (at every package depth).
+**/node_modules/
+**/.wrangler/
+**/.dev.vars*
+!**/.dev.vars.example
+!**/*.env.example
+/dist-ui/
+/dist-server/
+/dist-companion/
+/dist-native/
+/release/
+/.build/
+/.cache/
+/reports/
+/publication/
+/electron/vendor/
+/electron/resources/Clawd Bot Speech.app/
+/electron/resources/Clawd Bot Recorder.app/
+*.tsbuildinfo
+# Build contains authored icons and packaging resources; keep these sources.
+!/build/
+!/build/**
+# Private machine-specific installation and recovery notes.
+/docs/install-status-*.md
+
+# Local staging and backup application bundles are not source exports.
+/work/

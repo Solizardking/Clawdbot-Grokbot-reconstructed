@@ -1,3 +1,4 @@
+import { HOSTED_SERVICE_PROVIDER, withHostedServiceTools } from "./hosted-service-tools.js";
 import { DashboardService } from "../../../packages/proto/generated/aiserver/v1/dashboard_connect.js";
 import {
   createAccountMcpWriter,
@@ -102,7 +103,7 @@ export function createHostMcp(deps: CreateHostMcpOptions): McpHostPort {
     onConnectorAuth: deps.onConnectorAuth,
     getMachineId: deps.getMachineId,
   }) as unknown as McpManagerRuntime;
-  const discovery = createMcpToolsDiscovery({
+  const discovery = withHostedServiceTools(createMcpToolsDiscovery({
     definitionSource: manager.definitionSourceView(),
     lastAccountDisplayConfig: () => manager.lastAccountDisplayConfigView(),
     settingsStore: () => manager.settingsStoreView(),
@@ -111,6 +112,9 @@ export function createHostMcp(deps: CreateHostMcpOptions): McpHostPort {
     ...(deps.boxMcpExec === undefined ? {} : { boxMcpExec: deps.boxMcpExec }),
     ...(deps.onDiscoveryFailed === undefined ? {} : { onDiscoveryFailed: deps.onDiscoveryFailed }),
     ...(deps.onConnectorAuth === undefined ? {} : { onConnectorAuth: deps.onConnectorAuth }),
+  }), {
+    disabledTools: () => (manager.settingsStoreView() as { getMcpDisabledToolsByServerId?(): Record<string, string[]> } | undefined)?.getMcpDisabledToolsByServerId?.()[HOSTED_SERVICE_PROVIDER] ?? [],
+    onExecuted: name => log(`hosted tool completed: ${name}`),
   });
   manager.setBoxRuntime(discovery);
   const token = deps.getAccessToken ?? (async () => null);
@@ -118,7 +122,7 @@ export function createHostMcp(deps: CreateHostMcpOptions): McpHostPort {
   const readEffective = async (): Promise<EffectivePlugin[] | null> => { try { return await manager.listEffectivePlugins(); } catch (error) { log(`effective-plugins read degraded to attributed rows: ${error instanceof Error ? error.message : String(error)}`); return null; } };
   const mutate = async <T>(fn: () => Promise<T>): Promise<T> => { const result = await fn(); deps.onServersMutated?.(); return result; };
   const management = {
-    listInstalled: async () => toInstalledServers(await manager.listServers()),
+    listInstalled: async () => [...toInstalledServers(await manager.listServers()), ...await discovery.listHostedServers()],
     listPlugins: async () => { const [views, state, effective] = await Promise.all([manager.getCatalog(token), manager.listServers(), readEffective()]); return views.map((view) => toPluginSummary(view, effective, state.servers)); },
     getPlugin: async (pluginId: string) => {
       let views = await manager.getCatalog(token), view = views.find((entry) => entry.id === pluginId);

@@ -1,0 +1,23 @@
+# Clawd hosted Telegram bridge: one long-poll consumer for the user's own bot.
+app = "clawd-grok-telegram-bot"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  SAND_TELEGRAM_AUTOSTART = "1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The bridge long-polls Telegram; it must never be stopped for idleness.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

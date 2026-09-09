@@ -14,7 +14,9 @@ import { resolveRuntimeApp } from "./runtime.mjs";
 
 export const reconstructedUpdaterGuard = [
   "// Reconstructed-build guard: do not consume official update or telemetry services.",
-  "process.env.SAND_DISABLE_UPDATES ??= \"1\";",
+  "// Updates are forced off: the live backend rejects the pinned 0.18 client, and an",
+  "// ambient SAND_DISABLE_UPDATES=0 must never let the official updater replace this build.",
+  "process.env.SAND_DISABLE_UPDATES = \"1\";",
   "process.env.SAND_DISABLE_SENTRY ??= \"1\";",
   "process.env.SAND_DISABLE_TELEMETRY ??= \"1\";",
   ""
@@ -144,6 +146,15 @@ export async function buildAsar({
   await rm(buildRoot, { recursive: true, force: true });
   await mkdir(buildRoot, { recursive: true });
   await cp(sourceAppDir, stageRoot, { recursive: true, dereference: false, preserveTimestamps: true });
+  const bundledPlugins = path.join(repoRoot, "plugins");
+  const stagedPlugins = path.join(stageRoot, "plugins");
+  await rm(stagedPlugins, { recursive: true, force: true });
+  await cp(bundledPlugins, stagedPlugins, { recursive: true, dereference: true, preserveTimestamps: true });
+  for (const relative of ["box/openai-hop-session.cjs", "tools/provider-maps.cjs", "tools/file-relay.py", "docs/opengrok/BOX-INTEGRATION.md", "docs/opengrok/CLOUD-HOST.md"]) {
+    const destination = path.join(stageRoot, relative);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await cp(path.join(repoRoot, relative), destination);
+  }
 
   if (process.env.GROK_BOT_BUILD_DEV_APP === "1") {
     const stagedPackagePath = path.join(stageRoot, "package.json");

@@ -1,0 +1,18 @@
+{
+  "name": "clawd-box-tools",
+  "private": true,
+  "scripts": {
+    "start": "node openai-hop-session.cjs",
+    "check:auth": "node upstash-box.cjs --check-auth",
+    "connect": "node upstash-box.cjs --connect",
+    "example:cities": "node upstash-box.cjs",
+    "example:code": "node upstash-box.cjs --code"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@upstash/box": "0.7.4",
+    "zod": "4.5.4"
+  }
+}

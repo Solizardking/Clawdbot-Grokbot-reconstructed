@@ -113,7 +113,10 @@ export interface CoordinatorControlExecutorDependencies {
   readonly onProcessCrash: (report: unknown) => void;
   readonly getRpcTraceWindowTraceparent?: () => string | undefined;
   readonly listRoutedMcpTools?: () => Promise<unknown>;
+  readonly getHostedGatewayAccess?: () => Promise<{ url: string; token: string } | undefined>;
   readonly executeRoutedMcpTool?: (request: unknown) => Promise<unknown>;
+  /** Decrypts an app-local Solana wallet secret for swap signing (main process only). */
+  readonly revealSolanaWalletSecret?: (request: unknown) => Promise<string>;
   readonly readLocalExecDaemonDiscovery?: () => Promise<LocalExecDiscovery | null>;
   readonly clearLocalExecDaemonDiscoveryIfMatches?: (expected: LocalExecDiscovery) => Promise<boolean>;
   readonly native?: {
@@ -259,7 +262,7 @@ function renderPrompt(origin: string, rpId: string): string {
 		document.getElementById(id).textContent = origin;
 	}
 	document.getElementById("detail").textContent =
-		"A browser in your Grok Bot box is asking to sign in to " + rpId +
+		"A browser in your Clawd Bot box is asking to sign in to " + rpId +
 		" with the security key plugged into this computer. Approve only if you started this.";
 
 	const panels = ["prompt", "working", "pin-prompt"];
@@ -462,6 +465,7 @@ export function createCoordinatorControlExecutors(
 
   return {
     resolveGatewayConnection: () => connector.connect(),
+    getHostedGatewayAccess: async () => (await dependencies.getHostedGatewayAccess?.()) ?? null,
     listRoutedMcpTools: async () => {
       if (dependencies.listRoutedMcpTools == null) throw new Error("Desktop MCP routing is unavailable.");
       return await dependencies.listRoutedMcpTools();
@@ -469,6 +473,10 @@ export function createCoordinatorControlExecutors(
     executeRoutedMcpTool: async (request: unknown) => {
       if (dependencies.executeRoutedMcpTool == null) throw new Error("Desktop MCP routing is unavailable.");
       return await dependencies.executeRoutedMcpTool(request);
+    },
+    revealSolanaWalletSecret: async (request: unknown) => {
+      if (dependencies.revealSolanaWalletSecret == null) throw new Error("Local Solana wallet signing is unavailable.");
+      return await dependencies.revealSolanaWalletSecret(request);
     },
     async mintLocalExecDaemonCredential() {
       return (await connector.issueLocalExecDaemonCredential?.()) ?? null;

@@ -65,6 +65,8 @@ export const electronMainProductionBindingResidualPaths = Object.freeze(
 
 /** Runtime package edges retained by the clean Electron-main bundle. */
 export const electronMainExternalRuntimePackageSpecs = Object.freeze([
+{"name": "@open-wallet-standard/core", "version": "1.4.2", "lockPath": "node_modules/@open-wallet-standard/core", "integrity": "sha512-alu69/tEeGYJhC1nyc7EGhJM6oqOU8XQv3S1qYe+LFYU/iHHi7QQrnTvNBesUkosccWf8TRZzhmGluRhaE44KQ=="},
+{"name": "@open-wallet-standard/core-darwin-arm64", "version": "1.4.2", "lockPath": "node_modules/@open-wallet-standard/core-darwin-arm64", "integrity": "sha512-0bu36U0vGLqIn7rxHAJNA253VvV9xt+AbWLWf8NHxiDoLaZX0RSVyBd79g80Pyi6N9/KkgltDWAq4hfruOaz9A=="},
   {
     name: "undici",
     version: "5.29.0",
@@ -411,7 +413,7 @@ export async function buildProductionElectronMainIfSupplied({ outputRoot, manife
     banner: { js: `const __import_meta_url = require("node:url").pathToFileURL(__filename).href;\n// Deterministic clean-source production Electron main; bindings ${validated.manifestSha256}` },
     bundle: true,
     define: { "import.meta.url": "__import_meta_url" },
-    external: ["electron", "undici", "ws", ...declaredExternal],
+    external: ["@open-wallet-standard/core", "electron", "undici", "ws", ...declaredExternal],
     format: "cjs",
     legalComments: "none",
     logLevel: "silent",
@@ -430,7 +432,7 @@ export async function buildProductionElectronMainIfSupplied({ outputRoot, manife
   const forbiddenInputs = inputs.filter(input => input === "src/app" || input.startsWith("src/app/") || input.startsWith("recovered/source-capsules/") || input.startsWith("dist/deps/"));
   if (forbiddenInputs.length > 0) throw new Error(`Clean production Electron main reaches forbidden first-party artifact inputs: ${forbiddenInputs.join(", ")}`);
   const externalImports = [...new Set(Object.values(result.metafile.outputs).flatMap(output => output.imports.map(item => item.path)))].sort();
-  const allowedPackages = new Set(["electron", "undici", "ws", ...declaredExternal, ...builtins]);
+  const allowedPackages = new Set(["@open-wallet-standard/core", "electron", "undici", "ws", ...declaredExternal, ...builtins]);
   const unexpectedExternal = externalImports.filter(specifier => !allowedPackages.has(specifier));
   if (unexpectedExternal.length > 0) throw new Error(`Clean production Electron main has undeclared external imports: ${unexpectedExternal.join(", ")}`);
   const runtimePackages = await materializeElectronMainRuntimePackages(outputRoot);
