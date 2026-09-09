@@ -2,6 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "clawdbot-composio",
   "main": "src/index.ts",
+  "account_id": "7640372571bf2d69ed5d58a6a6d8929e",
   "compatibility_date": "2026-08-18",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
@@ -15,7 +16,7 @@
     {
       "binding": "DB",
       "database_name": "clawdbot-composio",
-      "database_id": "435bcde1-c017-416f-b041-7ffc508e9d88",
+      "database_id": "cc1d4eac-209e-4a84-a2be-4117c6ee97e4",
       "migrations_dir": "migrations"
     }
   ],
