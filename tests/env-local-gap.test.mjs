@@ -105,7 +105,7 @@ test(".env.local has aliases for OpenRouter / Browser Use / Helius / Pump, not t
   }
   assert.equal(envLocal.names.get("BROWSERUSE_BOX_ID"), "empty");
   assert.equal(envLocal.names.get("BROWSERUSE_PROJECT_ID"), "empty");
-  assert.equal(envLocal.names.get("CLAWD_WHITELIST_WALLET"), "empty");
+  assert.equal(envLocal.names.get("CLAWD_WHITELIST_WALLETS"), "empty");
   assert.equal(envLocal.names.get("TELEGRAM_BOT_TOKEN"), "set");
   assert.equal(envLocal.names.get("TAVILY_API_KEY"), "set");
   assert.equal(envLocal.names.get("COMPOSIO_API_KEY"), "set");
@@ -219,22 +219,22 @@ test("Telegram bridge config treats HELIUS_RPC_URL as enough for Helius but SOLG
 });
 
 test("Browser Use coordinator accepts BROWSERUSE_API_KEY; gateway does not", async () => {
-  const loaded = await loadSource("source/node-agent-coordinator/browser-use-tools.ts");
+  const browser = await loadSource("source/node-agent-coordinator/browser-use-tools.ts");
   const previousUse = process.env.BROWSER_USE_API_KEY;
   const previousAlias = process.env.BROWSERUSE_API_KEY;
   delete process.env.BROWSER_USE_API_KEY;
   delete process.env.BROWSERUSE_API_KEY;
   try {
-    loaded.module.configureBrowserUseBridgeForTests({ apiKey: undefined, fetchImpl: async () => { throw new Error("no network"); } });
+    browser.configureBrowserUseBridgeForTests({ apiKey: undefined, fetchImpl: async () => { throw new Error("no network"); } });
     await assert.rejects(
-      loaded.module.executeBrowserUseRoutedTool("browseruse_run_task", { task: "x" }),
+      browser.executeBrowserUseRoutedTool("browseruse_run_task", { task: "x" }),
       /Set BROWSER_USE_API_KEY \(or BROWSERUSE_API_KEY\)/,
     );
-    assert.equal(loaded.module.browserUseApiKey({ BROWSERUSE_API_KEY: "alias-key" }), "alias-key");
-    assert.equal(loaded.module.browserUseApiKey({ BROWSER_USE_API_KEY: "canonical-key" }), "canonical-key");
-    assert.equal(loaded.module.browserUseApiKey({}), undefined);
+    const isolated = { SAND_HOSTED_GATEWAY_URL: "", SAND_HOSTED_GATEWAY_TOKEN: "" };
+    assert.equal(browser.browserUseApiKey({ ...isolated, BROWSERUSE_API_KEY: "alias-key" }), "alias-key");
+    assert.equal(browser.browserUseApiKey({ ...isolated, BROWSER_USE_API_KEY: "canonical-key" }), "canonical-key");
   } finally {
-    loaded.module.configureBrowserUseBridgeForTests(null);
+    browser.configureBrowserUseBridgeForTests(null);
     if (previousUse == null) delete process.env.BROWSER_USE_API_KEY;
     else process.env.BROWSER_USE_API_KEY = previousUse;
     if (previousAlias == null) delete process.env.BROWSERUSE_API_KEY;
@@ -298,7 +298,8 @@ test("named Clawd deploy recipes are legacy, incomplete, or host-blocked", () =>
   assert.match(fly, /SAND_TELEGRAM_AUTOSTART = "1"/);
   assert.doesNotMatch(fly, /OPENROUTER_API_KEY/);
   const container = readFileSync(path.join(repoRoot, "clawd/deploy/podman/Containerfile"), "utf8");
-  assert.match(container, /uname -m"\) = x86_64/);
+  assert.match(container, /uname -m.*" = x86_64/);
+  assert.match(container, /requires Linux x86_64/);
   const podmanCompose = readFileSync(path.join(repoRoot, "clawd/deploy/podman/compose.yaml"), "utf8");
   assert.match(podmanCompose, /OMB_DATA_ROOT:\?Run setup\.sh first/);
   assert.match(podmanCompose, /PODMAN_SOCKET:\?Run setup\.sh first/);

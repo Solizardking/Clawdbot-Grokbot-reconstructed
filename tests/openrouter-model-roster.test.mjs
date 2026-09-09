@@ -1,21 +1,31 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
-import { transform } from 'esbuild';
-async function load(path) { const {code}=await transform(await readFile(new URL(path, import.meta.url),'utf8'),{loader:'ts',format:'esm'}); return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`); }
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
+async function load(path) {
+  const {outputFiles}=await build({absWorkingDir:fileURLToPath(new URL('..', import.meta.url)),entryPoints:[fileURLToPath(new URL(path, import.meta.url))],bundle:true,write:false,format:'esm',platform:'neutral',logLevel:'silent'});
+  return import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
+}
 const roster=await load('../source/shared/inference-router.ts');
 const {createOpenRouterModelFetch}=await load('../source/shared/openrouter-model-fetch.ts');
 test('requested slots are preserved and fallbacks dedupe in numeric order',()=>{
- assert.equal(Object.keys(roster.OPENROUTER_MODEL_PRESET).length,13);
+ assert.equal(Object.keys(roster.OPENROUTER_MODEL_PRESET).length,15);
  assert.equal(roster.OPENROUTER_MODEL_PRESET.OPENROUTER_MODEL6,undefined);
+ assert.equal(roster.OPENROUTER_MODEL_PRESET.OPENROUTER_MODEL14,'nex-agi/nex-n2.5-mini:free');
+ assert.equal(roster.OPENROUTER_MODEL_PRESET.OPENROUTER_MODEL15,'inclusionai/ling-3.0-flash-sante:free');
  assert.deepEqual(roster.resolveOpenRouterModelChain(roster.OPENROUTER_MODEL_PRESET), [...new Set(Object.values(roster.OPENROUTER_MODEL_PRESET))]);
- assert.equal(roster.resolveOpenRouterModelChain().length,11);
+ const empty=roster.resolveOpenRouterModelChain();
+ assert.equal(empty.length,13);
+ assert.ok(empty.includes('nex-agi/nex-n2.5-mini:free'));
+ assert.ok(empty.includes('inclusionai/ling-3.0-flash-sante:free'));
  assert.deepEqual(roster.resolveOpenRouterModelChain({OPENROUTER_MODEL:'primary:free',OPENROUTER_MODEL11:'eleven:free',OPENROUTER_MODEL2:'two:free',OPENROUTER_MODEL1:'one:free',OPENROUTER_MODEL13:'two:free'}),['primary:free','one:free','two:free','eleven:free']);
 });
 test('primary env wins over legacy and stored pins; custom single-model pins stay single',()=>{
  assert.deepEqual(roster.resolveOpenRouterModelChain({OPENROUTER_MODEL:'chosen:free',SAND_OPENROUTER_MODEL:'legacy:free'},'stored:free'),['chosen:free']);
  assert.deepEqual(roster.resolveOpenRouterModelChain({},'stored:free'),['stored:free']);
  assert.deepEqual(roster.resolveOpenRouterModelChain({OPENROUTER_MODEL:' ',OPENROUTER_MODEL1:'invalid model',SAND_OPENROUTER_MODEL:'legacy:free'}),['legacy:free']);
+ assert.deepEqual(roster.resolveOpenRouterModelChain({OPENROUTER_MODEL:'openrouter/auto',OPENROUTER_MODEL1:'one:free'}),['openrouter/auto']);
+ assert.deepEqual(roster.resolveOpenRouterModelChain({},'openrouter/auto'),['openrouter/auto']);
 });
 test('wire wrapper preserves tools, messages and auth while adding native fallback models',async()=>{
  const calls=[]; const models=roster.resolveOpenRouterModelChain();
@@ -31,7 +41,12 @@ test('wire wrapper preserves tools, messages and auth while adding native fallba
 
 test('capacity errors advance through three-model groups without dropping tool results; auth errors stop',async()=>{
  const models=roster.resolveOpenRouterModelChain(), calls=[];
- const wrapped=createOpenRouterModelFetch(async(_,init)=>{calls.push(JSON.parse(init.body));return new Response('{}',{status:calls.length<4?503:200});},models);
+ const wrapped=createOpenRouterModelFetch(async(_,init)=>{
+  const payload=JSON.parse(init.body);
+  calls.push(payload);
+  const last=payload.models[payload.models.length-1]===models[models.length-1];
+  return new Response('{}',{status:last?200:503});
+ },models);
  const messages=[{role:'tool',tool_call_id:'already-executed',content:'pending_approval'}];
  assert.equal((await wrapped('https://openrouter.ai/api/v1/chat/completions',{method:'POST',body:JSON.stringify({model:models[0],messages})})).status,200);
  assert.deepEqual(calls.flatMap(c=>c.models),models);

@@ -112,7 +112,10 @@ test("provider and model resolution follows env overrides", () => {
 });
 
 test("model chain resolution appends and dedupes fallbacks", () => {
-  assert.equal(resolveHeadlessModelChain("openrouter", {}).length, 11);
+  assert.equal(resolveHeadlessModelChain("openrouter", {}).length, 13);
+  assert.ok(resolveHeadlessModelChain("openrouter", {}).includes("nex-agi/nex-n2.5-mini:free"));
+  assert.ok(resolveHeadlessModelChain("openrouter", {}).includes("inclusionai/ling-3.0-flash-sante:free"));
+  assert.deepEqual(resolveHeadlessModelChain("openrouter", { OPENROUTER_MODEL: "openrouter/auto", OPENROUTER_MODEL1: "one:free" }), ["openrouter/auto"]);
   assert.deepEqual(
     resolveHeadlessModelChain("openrouter", {
       SAND_OPENROUTER_MODEL: "nvidia/nemotron-3.5-lightning:free",
@@ -121,6 +124,47 @@ test("model chain resolution appends and dedupes fallbacks", () => {
     ["nvidia/nemotron-3.5-lightning:free", "poolside/laguna-s-2.1:free", "poolside/laguna-m.1:free"],
   );
   assert.deepEqual(resolveHeadlessModelChain("xai", { SAND_XAI_MODEL: "grok-4.6" }), ["grok-4.6"]);
+});
+
+test("headless Auto Router posts openrouter/auto without a local models fallback array", async () => {
+  const requests = [];
+  const previous = {
+    OPENROUTER_AUTO_COST_TIER: process.env.OPENROUTER_AUTO_COST_TIER,
+    OPENROUTER_AUTO_ALLOWED_MODELS: process.env.OPENROUTER_AUTO_ALLOWED_MODELS,
+    OPENROUTER_AUTO_EXCLUDED_MODELS: process.env.OPENROUTER_AUTO_EXCLUDED_MODELS,
+    OPENROUTER_SESSION_ID: process.env.OPENROUTER_SESSION_ID,
+  };
+  process.env.OPENROUTER_AUTO_COST_TIER = "medium";
+  process.env.OPENROUTER_AUTO_ALLOWED_MODELS = "anthropic/*,openai/gpt-5.1";
+  process.env.OPENROUTER_AUTO_EXCLUDED_MODELS = "openai/gpt-4o";
+  process.env.OPENROUTER_SESSION_ID = "telegram-conv-123";
+  try {
+    const runTurn = createHeadlessTurnRunner({
+      provider: "openrouter",
+      apiKey: "k",
+      models: ["openrouter/auto", "nvidia/nemotron-3.5-lightning:free"],
+      fetchImpl: async (_, init) => {
+        requests.push(JSON.parse(init.body));
+        return jsonResponse({ ...completion({ content: "Auto routed." }), model: "anthropic/claude-sonnet-4.5" });
+      },
+    });
+    assert.equal(await runTurn("hi"), "Auto routed.");
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].model, "openrouter/auto");
+  assert.equal(requests[0].models, undefined);
+  assert.equal(requests[0].session_id, "telegram-conv-123");
+  assert.deepEqual(requests[0].plugins, [{
+    id: "auto-router",
+    cost_tier: "medium",
+    allowed_models: ["anthropic/*", "openai/gpt-5.1"],
+    excluded_models: ["openai/gpt-4o"],
+  }]);
 });
 
 test("headless sends the ordered fallback roster in one upstream request", async () => {

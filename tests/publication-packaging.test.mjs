@@ -107,6 +107,7 @@ test("Router settings use the trusted backend and display recorded inference usa
   assert.match(rendererPatch, /RRouterModel/);
   assert.match(rendererPatch, /"aria-label":"Routing model"/);
   assert.match(rendererPatch, /placeholder:s==="xai"\?"grok-4\.6":"nvidia\/nemotron-3-ultra-550b-a55b:free"/);
+  assert.match(rendererPatch, /Pin openrouter\/auto for market Auto Router/);
   assert.match(rendererPatch, /secret:"XAI_API_KEY"/);
   assert.match(rendererPatch, /RKernelKey/);
   assert.match(rendererPatch, /KERNEL_API_KEY/);

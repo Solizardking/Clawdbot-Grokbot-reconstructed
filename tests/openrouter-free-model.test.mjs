@@ -23,6 +23,9 @@ test("OpenRouter defaults to the requested Nemotron Ultra free model", async () 
 test("free-model ids normalize cleanly for every documented shape", async () => {
   const { normalizeSandOpenRouterModel } = await loadContract();
   assert.equal(normalizeSandOpenRouterModel("openrouter/free"), "openrouter/free");
+  assert.equal(normalizeSandOpenRouterModel("openrouter/auto"), "openrouter/auto");
+  assert.equal(normalizeSandOpenRouterModel("nex-agi/nex-n2.5-mini:free"), "nex-agi/nex-n2.5-mini:free");
+  assert.equal(normalizeSandOpenRouterModel("inclusionai/ling-3.0-flash-sante:free"), "inclusionai/ling-3.0-flash-sante:free");
   assert.equal(normalizeSandOpenRouterModel("nvidia/nemotron-3.5-lightning:free"), "nvidia/nemotron-3.5-lightning:free");
   assert.equal(normalizeSandOpenRouterModel("deepseek/deepseek-r1:free"), "deepseek/deepseek-r1:free");
   assert.equal(normalizeSandOpenRouterModel("meta-llama/llama-3.2-3b-instruct:free"), "meta-llama/llama-3.2-3b-instruct:free");
