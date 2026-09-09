@@ -32,3 +32,12 @@ it('a cancelled wallet request never creates a verified session', async () => {
   expect(screen.queryByText('VERIFIED CLAWD ACCOUNT')).toBeNull()
   await screen.unmount()
 })
+it('chat without a granted hosted model does not invent a completion', async () => {
+  const screen = await render(<HomeScreen />)
+  await fireEvent.press(screen.getByRole('tab', { name: 'Chat' }))
+  await fireEvent.changeText(screen.getByLabelText('Message Clawd'), 'Quote SOL')
+  await fireEvent.press(screen.getByRole('button', { name: 'Send message' }))
+  expect(await screen.findByText('Connect an account with a chat model grant first.')).toBeTruthy()
+  expect(screen.queryByText('The model returned no answer. Try again or choose another model.')).toBeNull()
+  await screen.unmount()
+})

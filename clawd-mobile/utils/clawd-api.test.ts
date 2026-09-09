@@ -1,4 +1,5 @@
 import { expect, it, vi, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { accessToken, gatewayRequest, jsonRequest, nativeRequest, validMarket } from './clawd-api'
 import { createRequire } from 'node:module'
 import { GATEWAY_ORIGIN } from '../constants/endpoints'
@@ -63,5 +64,15 @@ it('rejects a price response for another mint or an untrusted source', () => {
   expect(() => validMarket(m, 'mint-b')).toThrow()
   expect(() => validMarket({ ...m, sourceUrl: 'https://attacker.example' }, 'mint-a')).toThrow()
   expect(() => validMarket({ ...m, sourceUrl: 'http://www.geckoterminal.com' }, 'mint-a')).toThrow()
+  expect(() => validMarket({ ...m, sourceUrl: 'https://user:pass@www.geckoterminal.com/solana/pools/pool' }, 'mint-a')).toThrow()
   expect(() => validMarket({ ...m, priceUsd: -1 }, 'mint-a')).toThrow()
+})
+it('keeps service URLs in endpoints constants and never ships provider API key fields', async () => {
+  const { SITE_ORIGIN, GATEWAY_ORIGIN, CLAWD_MINT } = await import('../constants/endpoints')
+  expect(SITE_ORIGIN.startsWith('https://')).toBe(true)
+  expect(GATEWAY_ORIGIN.startsWith('https://')).toBe(true)
+  expect(CLAWD_MINT).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+  const source = readFileSync(new URL('../constants/endpoints.ts', import.meta.url), 'utf8')
+  expect(source).not.toMatch(/\bsk-/)
+  expect(source).not.toMatch(/API_KEY|OPENROUTER|XAI_API|HELIUS_API|BROWSER_USE/)
 })
