@@ -103,9 +103,14 @@ test("bootstrap hydration skips dangling unpacked npm bin stubs listed in the as
   }
 });
 
-test("cached 0.18 runtime asar hydrates despite dangling unpacked bins", async () => {
+test("cached 0.18 runtime asar hydrates despite dangling unpacked bins", async (t) => {
   const archive = path.join(cachedRuntimeApp, "Contents", "Resources", "app.asar");
-  await access(archive);
+  try {
+    await access(archive);
+  } catch {
+    t.skip("cached 0.18 runtime is a local bootstrap input, not a published source file");
+    return;
+  }
   const destination = await mkdtemp(path.join(tmpdir(), "grok-hydrate-runtime-"));
   try {
     const result = await hydrateSourcePayloadFromAsar(archive, {

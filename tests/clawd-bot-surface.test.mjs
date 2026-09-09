@@ -16,7 +16,6 @@ const LISTED_TREES = [
   "build",
   "cloudflare",
   "companion",
-  "dist-native",
   "docs",
   "electron",
   "ios",
