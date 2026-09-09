@@ -204,7 +204,12 @@ afterAll(async () => {
     // the suite instead
     setTimeout(resolve, 10_000).unref?.();
   });
-  rmSync(home, { recursive: true, force: true });
+  try {
+    rmSync(home, { recursive: true, force: true });
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : null;
+    if (code !== "EACCES" && code !== "ENOENT" && code !== "EBUSY" && code !== "ENOTEMPTY") throw error;
+  }
 });
 
 describe("the sidecar in front of an unmodified harness", () => {
