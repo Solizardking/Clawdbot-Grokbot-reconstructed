@@ -12,6 +12,8 @@ coverage/
 .env*
 !.env.example
 .env
+openrouter.env
+**/openrouter.env
 .vercel
 
 # x402 agent wallet store (local dev fallback; Fly uses a volume)

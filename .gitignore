@@ -41,6 +41,7 @@ node_modules/
 **/.dev.vars.production
 
 # Adapted Clawd Bot build output (source under clawd/ is tracked).
+/clawd-mobile/.build/
 /clawd/dist-ui/
 /clawd/dist-server/
 /clawd/dist-companion/

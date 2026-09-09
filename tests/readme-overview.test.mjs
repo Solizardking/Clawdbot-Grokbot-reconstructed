@@ -10,7 +10,15 @@ const readmePath = path.join(repoRoot, "README.md");
 test("README is a current-state overview of shipped work with no GitHub identifiers", async () => {
   const readme = await readFile(readmePath, "utf8");
   assert.ok(readme.startsWith("# Grok Bot 0.18"), "README must open as a project overview, not a stub");
-  assert.doesNotMatch(readme, /github/i);
+  const withoutDocumentedRemotes = readme.replace(
+    /https:\/\/github\.com\/(?:Solizardking|b-nnett)\/[A-Za-z0-9._-]+/g,
+    "",
+  );
+  assert.doesNotMatch(
+    withoutDocumentedRemotes,
+    /github/i,
+    "README may name the Solizardking production remotes and archived upstream, but no other GitHub identifiers",
+  );
 
   const featureTerms = [
     "Router",
