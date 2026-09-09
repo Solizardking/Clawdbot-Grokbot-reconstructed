@@ -8,9 +8,7 @@ Use Node 24, Java 17, and the Android SDK. From this directory:
 
 ```sh
 npm ci
-npm test
-npm run lint:check
-npx tsc --noEmit
+npm run ready
 npm run android
 ```
 
@@ -38,7 +36,7 @@ Endpoints are fixed in `constants/endpoints.ts`; never add provider API keys to 
 
 ## Verification and release boundary
 
-The September 9 beta passed 40 mobile tests, TypeScript and lint checks, APK signature verification, native ELF and ZIP 16 KB alignment checks, and its permission audit. The website certificate association and PNG wallet icon were verified live. No emulator or physical-wallet flow was completed.
+The September 9 beta passed 42 mobile tests, TypeScript and lint checks, APK signature verification, native ELF and ZIP 16 KB alignment checks, and its permission audit. Live website checks confirmed Digital Asset Links, `/privacy`, and native wallet challenge/origin rejection. No emulator or physical-wallet flow was completed. `npm run ready` repeats the automated half of this list.
 
 Automated checks cover access-file destination binding, native/browser authentication separation, replay and bad-signature rejection, malformed market responses, wallet cancellation, and missing-access UI. Live authentication checks use an ephemeral test wallet and revoke its session afterward. These checks do not replace an installed-wallet test on an Android device.
 

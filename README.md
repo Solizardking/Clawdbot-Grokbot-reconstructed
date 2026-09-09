@@ -156,6 +156,7 @@ The upstream app installed on the machine is never overwritten.
 | `manifests/` | Reconstruction binding, renderer-closure, and runner-parity manifests consumed by the build. |
 | `patches/` | Third-party package patches applied at install time. |
 | `clawd/` | Clawd Bot product surface, harness server, and Cloudflare Workers (Better Auth control plane plus Composio broker). |
+| `clawd-mobile/` | Clawd for Solana Mobile: Expo 57 Android beta with MWA sign-in, hosted chat, and exact-mint research. |
 
 Generated and ignored working trees — `.build/`, `.cache/`, `dist/`,
 `node_modules/`, and `src/app/dist` — are build outputs or extracted inputs,
