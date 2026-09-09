@@ -1,4 +1,6 @@
 # Clawd hosted Telegram bridge: one long-poll consumer for the user's own bot.
+# Do not `fly deploy` this template directory. It has no server.cjs.
+#   npm run build:bridge && cd .build/telegram-bridge && fly deploy
 app = "clawd-grok-telegram-bot"
 primary_region = "sjc"
 

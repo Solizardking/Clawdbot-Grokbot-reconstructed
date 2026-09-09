@@ -35,4 +35,5 @@ await esbuild({
 });
 await cp(path.join(repoRoot, "deploy/telegram-bridge/Dockerfile"), path.join(outputRoot, "Dockerfile"));
 await cp(path.join(repoRoot, "deploy/telegram-bridge/fly.toml"), path.join(outputRoot, "fly.toml"));
+await cp(path.join(repoRoot, "deploy/telegram-bridge/.dockerignore"), path.join(outputRoot, ".dockerignore"));
 console.log(`telegram-bridge bundle ready: ${path.join(outputRoot, "server.cjs")}`);
