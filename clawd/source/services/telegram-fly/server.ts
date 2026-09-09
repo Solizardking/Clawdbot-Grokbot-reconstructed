@@ -1,6 +1,6 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
-import { resolveOpenRouterModelChain } from "../../shared/inference-router.js";
+import { resolveOpenRouterAutoRouterRequest, resolveOpenRouterModelChain } from "../../shared/inference-router.js";
 import { createOpenRouterModelFetch } from "../../shared/openrouter-model-fetch.js";
 import { PAYBOX_INSTRUCTIONS } from "../../shared/paybox-instructions.js";
 import { BUNDLED_SKILL_ROUTED_TOOLS, executeBundledSkillTool, isBundledSkillTool, renderBundledSkillsCatalog } from "../../shared/bundled-trading-skills.js";
@@ -104,7 +104,7 @@ export function createHeadlessTurnRunner(deps: HeadlessTurnRunnerDeps = {}): (pr
       throw new Error(`${provider === "xai" ? "xAI needs XAI_API_KEY" : "OpenRouter needs OPENROUTER_API_KEY"}; set it with \`fly secrets set\`.`);
     }
     if (models.length === 0) throw new Error("No inference models configured.");
-    if (provider === "openrouter") return runSingleModelTurn(provider, apiKey, models[0]!, prompt, createOpenRouterModelFetch(fetchImpl, models));
+    if (provider === "openrouter") return runSingleModelTurn(provider, apiKey, models[0]!, prompt, createOpenRouterModelFetch(fetchImpl, models, resolveOpenRouterAutoRouterRequest(process.env)));
     let lastError: Error | null = null;
     for (const model of models) {
       try {

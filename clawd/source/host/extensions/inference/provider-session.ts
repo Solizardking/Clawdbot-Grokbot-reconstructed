@@ -8,7 +8,7 @@ import { jsonSchema, streamText, tool, type CoreMessage, type LanguageModelV1, t
 
 import { BasePromptBuilder, BasePromptExecutor } from "../../../packages/chat-inference/base.js";
 import type { SandInferenceProvider } from "../../../shared/inference-router.js";
-import { resolveOpenRouterModelChain, SAND_DEFAULT_XAI_MODEL } from "../../../shared/inference-router.js";
+import { resolveOpenRouterAutoRouterRequest, resolveOpenRouterModelChain, SAND_DEFAULT_XAI_MODEL } from "../../../shared/inference-router.js";
 import { createOpenRouterModelFetch } from "../../../shared/openrouter-model-fetch.js";
 import { hostedProviderConfig, createHostedProviderFetch } from "../../../shared/hosted-provider.js";
 import { PAYBOX_INSTRUCTIONS } from "../../../shared/paybox-instructions.js";
@@ -325,7 +325,7 @@ function openRouterExecutor(messages: readonly ProviderMessage[], invocationId: 
   const id = configuredOpenRouterModel();
   const cache = openRouterCacheOptions();
   const hostedFetch = createHostedProviderFetch(hostedProviderConfig({ ...persistedSecrets(), ...process.env }));
-  const routedFetch = createOpenRouterModelFetch(createOpenRouterInstrumentedFetch(hostedFetch, cache, recordOpenRouterRoute), configuredOpenRouterModels());
+  const routedFetch = createOpenRouterModelFetch(createOpenRouterInstrumentedFetch(hostedFetch, cache, recordOpenRouterRoute), configuredOpenRouterModels(), resolveOpenRouterAutoRouterRequest(process.env));
   const model: LanguageModelV1 = createOpenAI({ apiKey: openRouterCredential(), baseURL: "https://openrouter.ai/api/v1", compatibility: "compatible", name: "openrouter", headers: openRouterAttributionHeaders(), fetch: routedFetch }).chat(id as any);
   return streamRoutedText(model, messages, invocationId, definitions, executeTool, onUsage, systemPrompt);
 }

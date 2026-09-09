@@ -210,16 +210,23 @@ Open **Settings → Router** to choose the backend used for new turns:
 ### Free open models via OpenRouter
 
 The OpenRouter route defaults to `nvidia/nemotron-3-ultra-550b-a55b:free`
-with the requested ordered free-model roster. Set `OPENROUTER_API_KEY` in the
-environment or Settings → Router. See [the complete preset](deploy/openrouter.env.example)
-for `OPENROUTER_MODEL` and numbered fallback variables (slot 6 is intentionally
-absent; repeated IDs are attempted once).
+with the requested ordered free-model roster, including
+`nex-agi/nex-n2.5-mini:free` and `inclusionai/ling-3.0-flash-sante:free`.
+Set `OPENROUTER_API_KEY` in the environment or Settings → Router. See
+[the complete preset](deploy/openrouter.env.example) for `OPENROUTER_MODEL`
+and numbered fallback variables (slot 6 is intentionally absent; repeated
+IDs are attempted once).
 
 OpenRouter receives up to three candidates in its native `models` field.
 On capacity/model HTTP errors, the transport advances to the next group.
 The app does not replay an entire tool turn to try another model. A custom
 model saved in Settings overrides the default roster; environment variables
-win over the saved model. `openrouter/free` remains an explicit option.
+win over the saved model. Pin `openrouter/auto` to let OpenRouter's market
+Auto Router pick the model (this can select paid models; there is no extra
+router fee). Optional `OPENROUTER_AUTO_COST_TIER`,
+`OPENROUTER_AUTO_ALLOWED_MODELS`, `OPENROUTER_AUTO_EXCLUDED_MODELS`, and
+`OPENROUTER_SESSION_ID` are sent on Auto Router requests only.
+`openrouter/free` remains an explicit zero-cost option.
 Free-model availability and rate limits depend on OpenRouter.
 
 ### PayBox wallets and paid services

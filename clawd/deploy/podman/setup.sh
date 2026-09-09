@@ -15,6 +15,7 @@ if [ ! -f .env ]; then
     chmod 700 "$data_root"
     umask 077
     cat > .env <<EOF
+# setup.sh generates these paths for the current Linux user; do not use Windows paths.
 COMPOSE_PROJECT_NAME=clawd-bot-podman
 OMB_DATA_ROOT=$data_root
 PODMAN_SOCKET=/run/user/$(id -u)/podman/podman.sock
@@ -22,7 +23,9 @@ OMB_PORT=8799
 OMB_WEBHOOK_PORT=8800
 OMB_HTTP_PORT=8080
 OMB_PUBLIC_URL=http://localhost:8080
+# For a trusted HTTPS terminator such as Tailscale Serve, set its exact hostname.
 OMB_HTTPS_HOST=https-disabled.invalid
+# Optional npm engine packages; pin versions for reproducible deployments.
 ENGINES=
 EOF
 fi

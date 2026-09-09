@@ -24,18 +24,18 @@ PowerShell. Podman Desktop is optional. Clone the repository on a Windows drive
 that WSL can access through `/mnt/c`, `/mnt/d`, etc. From the repository root:
 
 ```powershell
-.\deploy\podman\maus.ps1 setup
+.\deploy\podman\clawd.ps1 setup
 # Edit deploy/podman/.env. Set ENGINES to the npm CLI packages you want to use.
-.\deploy\podman\maus.ps1 up -d --build
-.\deploy\podman\maus.ps1 ps
+.\deploy\podman\clawd.ps1 up -d --build
+.\deploy\podman\clawd.ps1 ps
 ```
 
-Setup creates/starts a WSL2 machine named `openmausbot` (4 CPUs, 10 GiB RAM,
+Setup creates/starts a WSL2 machine named `clawdbot` (4 CPUs, 10 GiB RAM,
 60 GiB requested disk), installs `podman-compose` inside it if missing, enables
 the user socket, and generates `.env`. WSL resource limits still apply.
 It preserves an existing `.env`. Use `OMB_PODMAN_MACHINE` to select a different
 machine. The wrapper refuses a stopped machine for normal Compose commands;
-after a reboot, use `podman machine start openmausbot` before `up -d`.
+after a reboot, use `podman machine start clawdbot` before `up -d`.
 
 Compose runs **inside** the machine, so the socket and bind paths have the same
 meaning for the server and the engine. `OMB_PODMAN_ENV_FILE` selects an alternate
@@ -67,9 +67,9 @@ Podman restart service configured according to the host's administration policy.
 ## Engines and desktops
 
 Open <http://localhost:8080>. Sign the selected engines in inside the container,
-for example `maus.ps1 exec omb claude`. Their logins persist under `OMB_DATA_ROOT`.
+for example `clawd.ps1 exec omb claude`. Their logins persist under `OMB_DATA_ROOT`.
 For the Linux commands, substitute the `podman compose --env-file .env -f
-compose.yaml` prefix for `maus.ps1`.
+compose.yaml` prefix for `clawd.ps1`.
 
 In **App Settings -> Local VM**, prepare the managed image, select **Per bot**,
 and set the maximum number of desktops. Give each bot **Local VM** as its computer,
@@ -78,7 +78,7 @@ Each desktop has the existing 4 GiB / 2 CPU limits; allow capacity for the serve
 and build as well as all concurrent desktops. See the
 [computer integration guide](../../docs/computer-use-integration.md).
 
-The server's `maus` user (1001) and each desktop's `cua` user (1000) map to the same
+The server's `clawd` user (1001) and each desktop's `cua` user (1000) map to the same
 rootless host user through separate `keep-id` namespaces. The server mounts the
 data root at the **same absolute path** on both sides so desktop workspace paths
 resolve on the engine host. Do not replace that mount with an unrelated named
@@ -121,6 +121,6 @@ manual noVNC access from another device needs a separate authenticated relay.
   build and start the stack, then check `http://localhost:8080/api/health` for
   `app: "clawdbot"` and `static: true`. Open the UI, run a configured agent,
   and verify a per-bot desktop before calling the deployment ready.
-- Existing `OMB_DATA_ROOT/.openmausbot` volumes retain that compatibility path;
-  setup does not migrate or delete an existing workspace. `OMB_` configuration
-  names and the `omb` service/user plumbing remain supported compatibility names.
+- Existing volumes under a previous product data path are not migrated or deleted.
+  `OMB_` configuration names and the `omb` service remain supported compatibility
+  names.

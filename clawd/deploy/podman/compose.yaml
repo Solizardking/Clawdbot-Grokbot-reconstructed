@@ -19,7 +19,7 @@ services:
       - ${PODMAN_SOCKET:?Run setup.sh first}:/run/omb-podman.sock
     environment:
       HOME: ${OMB_DATA_ROOT}
-      OMB_DATA_DIR: ${OMB_DATA_ROOT}/.openmausbot
+      OMB_DATA_DIR: ${OMB_DATA_ROOT}/.clawdbot
       OMB_STATIC_DIR: /app/dist-ui
       COMPOSIO_API_KEY: ${COMPOSIO_API_KEY:-}
       CONTAINER_HOST: unix:///run/omb-podman.sock

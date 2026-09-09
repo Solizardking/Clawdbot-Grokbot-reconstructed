@@ -22,23 +22,46 @@ export function openRouterCacheHeaders(cacheEnabled: boolean, ttlSeconds?: numbe
   return { "X-OpenRouter-Cache": "true", ...(ttl == null || ttl === SAND_OPENROUTER_CACHE_DEFAULT_TTL_SECONDS ? {} : { "X-OpenRouter-Cache-TTL": String(ttl) }) };
 }
 
+function asJsonRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value != null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
 /** Extracts the router metadata object from a non-streaming JSON body or the final SSE data chunk. */
 export function parseOpenRouterMetadataFromText(text: string, contentType: string): Record<string, unknown> | null {
-  const asRecord = (value: unknown): Record<string, unknown> | null => typeof value === "object" && value != null && !Array.isArray(value) ? value as Record<string, unknown> : null;
   try {
     if (contentType.includes("text/event-stream")) {
       for (const line of text.split("\n").reverse()) {
         if (!line.startsWith("data:")) continue;
         const payload = line.slice(5).trim();
         if (payload.length === 0 || payload === "[DONE]") continue;
-        const parsed = asRecord(JSON.parse(payload));
-        const metadata = asRecord(parsed?.openrouter_metadata);
+        const parsed = asJsonRecord(JSON.parse(payload));
+        const metadata = asJsonRecord(parsed?.openrouter_metadata);
         if (metadata != null) return metadata;
       }
       return null;
     }
-    const parsed = asRecord(JSON.parse(text));
-    return asRecord(parsed?.openrouter_metadata);
+    const parsed = asJsonRecord(JSON.parse(text));
+    return asJsonRecord(parsed?.openrouter_metadata);
+  } catch {
+    return null;
+  }
+}
+
+/** Top-level `model` from a chat-completions JSON body or the last SSE chunk (Auto Router served slug). */
+export function parseOpenRouterServedModelFromText(text: string, contentType: string): string | null {
+  try {
+    if (contentType.includes("text/event-stream")) {
+      for (const line of text.split("\n").reverse()) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (payload.length === 0 || payload === "[DONE]") continue;
+        const parsed = asJsonRecord(JSON.parse(payload));
+        if (typeof parsed?.model === "string" && parsed.model.length > 0) return parsed.model;
+      }
+      return null;
+    }
+    const parsed = asJsonRecord(JSON.parse(text));
+    return typeof parsed?.model === "string" && parsed.model.length > 0 ? parsed.model : null;
   } catch {
     return null;
   }
@@ -59,9 +82,10 @@ function summarizeMetadata(metadata: Record<string, unknown> | null, cacheStatus
   };
 }
 
-export function summarizeOpenRouterRoute(metadata: Record<string, unknown> | null, cacheHeader: string | null): SandOpenRouterLastRoute {
+export function summarizeOpenRouterRoute(metadata: Record<string, unknown> | null, cacheHeader: string | null, servedModel?: string | null): SandOpenRouterLastRoute {
   const status = cacheHeader === "HIT" || cacheHeader === "MISS" ? cacheHeader : null;
-  return { ...summarizeMetadata(metadata, status), recordedAt: new Date().toISOString() };
+  const summarized = summarizeMetadata(metadata, status);
+  return { ...summarized, servedModel: summarized.servedModel ?? (typeof servedModel === "string" && servedModel.length > 0 ? servedModel : null), recordedAt: new Date().toISOString() };
 }
 
 export interface OpenRouterInstrumentedFetchOptions {
@@ -96,7 +120,8 @@ export function createOpenRouterInstrumentedFetch(fetchImpl: FetchLike, options:
       try {
         const text = await response.clone().text();
         if (text.length > 5_000_000) return;
-        onRoute(summarizeOpenRouterRoute(parseOpenRouterMetadataFromText(text, response.headers.get("content-type") ?? ""), cacheHeader));
+        const contentType = response.headers.get("content-type") ?? "";
+        onRoute(summarizeOpenRouterRoute(parseOpenRouterMetadataFromText(text, contentType), cacheHeader, parseOpenRouterServedModelFromText(text, contentType)));
       } catch {}
     })();
     return response;
