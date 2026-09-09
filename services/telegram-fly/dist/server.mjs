@@ -84276,11 +84276,17 @@ var OPENROUTER_MODEL_PRESET = {
   OPENROUTER_MODEL10: "poolside/laguna-xs-2.1:free",
   OPENROUTER_MODEL11: "z-ai/glm-5.2:free",
   OPENROUTER_MODEL12: "liquid/lfm-2.5-2.6b:free",
-  OPENROUTER_MODEL13: "liquid/lfm-2.5-2.6b:free"
+  OPENROUTER_MODEL13: "liquid/lfm-2.5-2.6b:free",
+  OPENROUTER_MODEL14: "nex-agi/nex-n2.5-mini:free",
+  OPENROUTER_MODEL15: "inclusionai/ling-3.0-flash-sante:free"
 };
 var SAND_DEFAULT_OPENROUTER_MODEL = OPENROUTER_MODEL_PRESET.OPENROUTER_MODEL;
+var OPENROUTER_AUTO_ROUTER_MODEL = "openrouter/auto";
+var OPENROUTER_AUTO_ROUTER_PLUGIN_ID = "auto-router";
+var OPENROUTER_AUTO_COST_TIERS = ["low", "medium", "high", "xhigh", "max"];
 function resolveOpenRouterModelChain(env = {}, storedModel) {
   const primary = [env.OPENROUTER_MODEL, env.SAND_OPENROUTER_MODEL, env.OPENROUTER_GROK_MODEL, env.OPENROUTER_NEMO, storedModel].map(normalizeSandOpenRouterModel).find((value) => value != null) ?? SAND_DEFAULT_OPENROUTER_MODEL;
+  if (isOpenRouterAutoRouter(primary)) return [OPENROUTER_AUTO_ROUTER_MODEL];
   const numberedKeys = Object.keys(env).filter((key) => /^OPENROUTER_MODEL[1-9]\d*$/.test(key)).sort((a, b) => Number(a.slice(16)) - Number(b.slice(16)));
   const numbered = numberedKeys.map((key) => normalizeSandOpenRouterModel(env[key])).filter((value) => value != null);
   const fallback = (env.SAND_OPENROUTER_FALLBACK_MODELS ?? env.OPENROUTER_FALLBACK_MODELS ?? "").split(",").map(normalizeSandOpenRouterModel).filter((value) => value != null);
@@ -84300,15 +84306,69 @@ function normalizeSandOpenRouterModel(value) {
   if (trimmed.length === 0 || trimmed.length > 200 || !/^[A-Za-z0-9._\-/:]+$/.test(trimmed)) return void 0;
   return trimmed;
 }
+function isOpenRouterAutoRouter(value) {
+  return normalizeSandOpenRouterModel(value) === OPENROUTER_AUTO_ROUTER_MODEL;
+}
+function normalizeOpenRouterModelPattern(value) {
+  if (typeof value !== "string") return void 0;
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > 200 || !/^[A-Za-z0-9._\-/*:]+$/.test(trimmed)) return void 0;
+  return trimmed;
+}
+function envText(env, keys) {
+  for (const key of keys) {
+    const value = env[key]?.trim();
+    if (value != null && value.length > 0) return value;
+  }
+  return void 0;
+}
+function parsePatternList(value) {
+  if (value == null) return void 0;
+  const items = [...new Set(value.split(",").map(normalizeOpenRouterModelPattern).filter((item) => item != null))];
+  return items.length === 0 ? void 0 : items;
+}
+function resolveOpenRouterAutoRouterRequest(env = {}) {
+  const costRaw = envText(env, ["OPENROUTER_AUTO_COST_TIER", "SAND_OPENROUTER_AUTO_COST_TIER"])?.toLowerCase();
+  const costTier = costRaw != null && OPENROUTER_AUTO_COST_TIERS.includes(costRaw) ? costRaw : void 0;
+  const allowedModels = parsePatternList(envText(env, ["OPENROUTER_AUTO_ALLOWED_MODELS", "SAND_OPENROUTER_AUTO_ALLOWED_MODELS"]));
+  const excludedModels = parsePatternList(envText(env, ["OPENROUTER_AUTO_EXCLUDED_MODELS", "SAND_OPENROUTER_AUTO_EXCLUDED_MODELS"]));
+  const sessionId = envText(env, ["OPENROUTER_SESSION_ID", "SAND_OPENROUTER_SESSION_ID"]);
+  return {
+    ...costTier == null ? {} : { costTier },
+    ...allowedModels == null ? {} : { allowedModels },
+    ...excludedModels == null ? {} : { excludedModels },
+    ...sessionId == null || sessionId.length > 200 ? {} : { sessionId }
+  };
+}
+function applyOpenRouterAutoRouterPayload(body, request = {}) {
+  const { models: _models, plugins: _plugins, session_id: _session, ...rest } = body;
+  const plugin = { id: OPENROUTER_AUTO_ROUTER_PLUGIN_ID };
+  if (request.costTier != null) plugin.cost_tier = request.costTier;
+  if (request.allowedModels != null && request.allowedModels.length > 0) plugin.allowed_models = [...request.allowedModels];
+  if (request.excludedModels != null && request.excludedModels.length > 0) plugin.excluded_models = [...request.excludedModels];
+  const sessionId = request.sessionId?.trim();
+  return {
+    ...rest,
+    model: OPENROUTER_AUTO_ROUTER_MODEL,
+    ...sessionId != null && sessionId.length > 0 ? { session_id: sessionId } : {},
+    ...Object.keys(plugin).length > 1 ? { plugins: [plugin] } : {}
+  };
+}
 
 // source/shared/openrouter-model-fetch.ts
-function createOpenRouterModelFetch(fetchImpl, models) {
+var OPENROUTER_CHAT_COMPLETIONS = "https://openrouter.ai/api/v1/chat/completions";
+function createOpenRouterModelFetch(fetchImpl, models, autoRouter = {}) {
   return async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
-    if (url !== "https://openrouter.ai/api/v1/chat/completions" || models.length < 2) return fetchImpl(input, init);
+    if (url !== OPENROUTER_CHAT_COMPLETIONS) return fetchImpl(input, init);
     const body = init?.body ?? (input instanceof Request ? await input.clone().text() : void 0);
     if (typeof body !== "string") return fetchImpl(input, init);
     const parsed = JSON.parse(body);
+    const requested = typeof parsed.model === "string" ? parsed.model : models[0];
+    if (isOpenRouterAutoRouter(requested) || isOpenRouterAutoRouter(models[0])) {
+      return fetchImpl(input, { ...init, body: JSON.stringify(applyOpenRouterAutoRouterPayload(parsed, autoRouter)) });
+    }
+    if (models.length < 2) return fetchImpl(input, init);
     for (let offset = 0; offset < models.length; offset += 3) {
       const group = models.slice(offset, offset + 3);
       const response = await fetchImpl(input, { ...init, body: JSON.stringify({ ...parsed, model: group[0], models: group }) });
@@ -85356,6 +85416,7 @@ ${promptText}`;
     async start() {
       if (!stopped && status.running) return status;
       const token = await resolveToken();
+      setStatus({ configured: true });
       stopped = false;
       loopGeneration += 1;
       let username = null;
@@ -85678,7 +85739,7 @@ function createHeadlessTurnRunner(deps = {}) {
       throw new Error(`${provider === "xai" ? "xAI needs XAI_API_KEY" : "OpenRouter needs OPENROUTER_API_KEY"}; set it with \`fly secrets set\`.`);
     }
     if (models.length === 0) throw new Error("No inference models configured.");
-    if (provider === "openrouter") return runSingleModelTurn(provider, apiKey, models[0], prompt, createOpenRouterModelFetch(fetchImpl, models));
+    if (provider === "openrouter") return runSingleModelTurn(provider, apiKey, models[0], prompt, createOpenRouterModelFetch(fetchImpl, models, resolveOpenRouterAutoRouterRequest(process.env)));
     let lastError = null;
     for (const model of models) {
       try {
