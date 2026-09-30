@@ -33,6 +33,14 @@ function envCategories(): string | null {
   return value != null && value.length > 0 ? value : null;
 }
 
+function firstEnv(env: NodeJS.ProcessEnv, ...keys: readonly string[]): string {
+  for (const key of keys) {
+    const value = env[key]?.trim();
+    if (value != null && value.length > 0) return value;
+  }
+  return "";
+}
+
 const ROUTED_SYSTEM_PROMPT = [
   "You are Clawd Bot, a warm, concise desktop assistant.",
   "You are running inside Clawd Bot, not inside Codex CLI or Claude Code.",
@@ -74,7 +82,7 @@ export function resolveHeadlessProvider(env: NodeJS.ProcessEnv = process.env): H
   if (requested === "xai") return "xai";
   if (requested === "openrouter") return "openrouter";
   const hasXai = (env.XAI_API_KEY?.trim().length ?? 0) > 0;
-  const hasOpenRouter = (env.OPENROUTER_API_KEY?.trim().length ?? 0) > 0;
+  const hasOpenRouter = firstEnv(env, "OPENROUTER_API_KEY", "SOLGPT_API_KEY").length > 0;
   return hasXai && !hasOpenRouter ? "xai" : "openrouter";
 }
 
@@ -98,7 +106,7 @@ export function createHeadlessTurnRunner(deps: HeadlessTurnRunnerDeps = {}): (pr
   const fetchImpl = deps.fetchImpl ?? fetch;
   const run = async (prompt: string): Promise<string> => {
     const provider = deps.provider ?? resolveHeadlessProvider();
-    const apiKey = deps.apiKey ?? (provider === "xai" ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY)?.trim() ?? "";
+    const apiKey = deps.apiKey ?? (provider === "xai" ? firstEnv(process.env, "XAI_API_KEY") : firstEnv(process.env, "OPENROUTER_API_KEY", "SOLGPT_API_KEY"));
     const models = deps.models ?? resolveHeadlessModelChain(provider);
     if (apiKey.length === 0) {
       throw new Error(`${provider === "xai" ? "xAI needs XAI_API_KEY" : "OpenRouter needs OPENROUTER_API_KEY"}; set it with \`fly secrets set\`.`);

@@ -8,12 +8,18 @@ const UPSTREAMS = {
   xai: { url: 'https://api.x.ai/v1/chat/completions', key: 'XAI_API_KEY' },
 };
 const hash = value => createHash('sha256').update(value).digest('hex');
+function normalizeGatewayEnv(raw) {
+  const env = { ...raw };
+  if (!env.OPENROUTER_API_KEY?.trim() && env.SOLGPT_API_KEY?.trim()) env.OPENROUTER_API_KEY = env.SOLGPT_API_KEY;
+  return env;
+}
 const json = (res, status, body) => {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 };
 
 export function createGateway({ env = process.env, fetchImpl = fetch, now = Date.now } = {}) {
+  env = normalizeGatewayEnv(env);
   // Only digests go in the server registry; each user receives their own token.
   const users = JSON.parse(env.GATEWAY_USERS_JSON || '{}');
   if (!users || Array.isArray(users) || typeof users !== 'object' || !Object.keys(users).length) throw new Error('GATEWAY_USERS_JSON must contain user token digests');

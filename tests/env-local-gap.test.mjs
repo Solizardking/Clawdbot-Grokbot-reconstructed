@@ -80,36 +80,25 @@ async function loadSource(relative, extra = {}) {
   return import(`${pathToFileURL(outfile).href}?${Date.now()}`);
 }
 
-const envLocalPath = path.join(repoRoot, ".env.local");
-const envLocal = envPresence(envLocalPath);
+const legacyEnv = Object.freeze({
+  SOLGPT_API_KEY: "dummy-solgpt",
+  BROWSERUSE_API_KEY: "dummy-browseruse",
+  HELIUS_RPC_URL: "https://mainnet.helius-rpc.com/?api-key=dummy-helius",
+  SOLGPT_PUMP_MCP_TOKEN: "dummy-pump",
+  TELEGRAM_BOT_TOKEN: "dummy-telegram-token",
+  TAVILY_API_KEY: "dummy-tavily",
+  COMPOSIO_API_KEY: "dummy-composio",
+  E2B_API_KEY: "dummy-e2b",
+});
 
-test(".env.local has aliases for OpenRouter / Browser Use / Helius / Pump, not the canonical names the runtimes read", () => {
-  assert.equal(envLocal.exists, true);
-  assert.equal(envLocal.names.get("SOLGPT_API_KEY"), "set");
-  assert.equal(envLocal.names.has(CANONICAL.OPENROUTER_API_KEY), false);
-  assert.equal(envLocal.names.get("BROWSERUSE_API_KEY"), "set");
-  assert.equal(envLocal.names.has(CANONICAL.BROWSER_USE_API_KEY), false);
-  assert.equal(envLocal.names.get("HELIUS_RPC_URL"), "set");
-  assert.equal(envLocal.names.has(CANONICAL.HELIUS_API_KEY), false);
-  assert.equal(envLocal.names.get("SOLGPT_PUMP_MCP_TOKEN"), "set");
-  assert.equal(envLocal.names.has(CANONICAL.PUMP_MCP_TOKEN), false);
-  for (const name of [
-    CANONICAL.XAI_API_KEY,
-    CANONICAL.PAYBOX_SIGNING_KEY,
-    CANONICAL.PAYBOX_API_KEY,
-    CANONICAL.GATEWAY_USERS_JSON,
-    CANONICAL.GATEWAY_DATABASE_PATH,
-    CANONICAL.DEEPGRAM_API_KEY,
-  ]) {
-    assert.equal(envLocal.names.has(name), false, name);
+test("private env files are absent from the publishable tree and legacy names have canonical owners", () => {
+  for (const relative of [".env", ".env.local", "clawd/.env", "clawd/deploy/.env", "clawd/deploy/openrouter.env"]) {
+    assert.equal(existsSync(path.join(repoRoot, relative)), false, relative);
   }
-  assert.equal(envLocal.names.get("BROWSERUSE_BOX_ID"), "empty");
-  assert.equal(envLocal.names.get("BROWSERUSE_PROJECT_ID"), "empty");
-  assert.equal(envLocal.names.get("CLAWD_WHITELIST_WALLETS"), "empty");
-  assert.equal(envLocal.names.get("TELEGRAM_BOT_TOKEN"), "set");
-  assert.equal(envLocal.names.get("TAVILY_API_KEY"), "set");
-  assert.equal(envLocal.names.get("COMPOSIO_API_KEY"), "set");
-  assert.equal(envLocal.names.get("E2B_API_KEY"), "set");
+  assert.equal(ALIASES.SOLGPT_API_KEY, CANONICAL.OPENROUTER_API_KEY);
+  assert.equal(ALIASES.BROWSERUSE_API_KEY, CANONICAL.BROWSER_USE_API_KEY);
+  assert.equal(ALIASES.HELIUS_RPC_URL, CANONICAL.HELIUS_API_KEY);
+  assert.equal(ALIASES.SOLGPT_PUMP_MCP_TOKEN, CANONICAL.PUMP_MCP_TOKEN);
 });
 
 test("npm start scripts load .env, not .env.local, and the root .env file is missing", () => {
@@ -129,26 +118,25 @@ test("npm start scripts load .env, not .env.local, and the root .env file is mis
   assert.equal(existsSync(path.join(repoRoot, ".env")), false);
 });
 
-test("createGateway rejects an env shaped like .env.local because OpenRouter/xAI keys are absent", () => {
+test("createGateway accepts the legacy OpenRouter alias when canonical keys are absent", () => {
   const token = "a".repeat(43);
   const digest = createHash("sha256").update(token).digest("hex");
   const env = {
-    ...dummyFromNames(envLocal),
+    ...legacyEnv,
     GATEWAY_DATABASE_PATH: ":memory:",
     GATEWAY_USERS_JSON: JSON.stringify({ [digest]: { id: "alice", models: ["allowed"] } }),
   };
   assert.equal(Boolean(env.SOLGPT_API_KEY), true);
   assert.equal(env.OPENROUTER_API_KEY, undefined);
   assert.equal(env.XAI_API_KEY, undefined);
-  assert.throws(() => createGateway({ env }), /Configure at least one provider API key/);
+  assert.doesNotThrow(() => createGateway({ env }));
 });
 
-test("gateway account listing ignores BROWSERUSE_API_KEY, HELIUS_RPC_URL, and SOLGPT_PUMP_MCP_TOKEN aliases", async (t) => {
+test("gateway account listing recognizes supported legacy aliases without exposing private keys", async (t) => {
   const token = "a".repeat(43);
   const digest = createHash("sha256").update(token).digest("hex");
   const env = {
-    ...dummyFromNames(envLocal),
-    OPENROUTER_API_KEY: "dummy-openrouter-boot",
+    ...legacyEnv,
     GATEWAY_DATABASE_PATH: ":memory:",
     GATEWAY_USERS_JSON: JSON.stringify({
       [digest]: {
@@ -167,14 +155,11 @@ test("gateway account listing ignores BROWSERUSE_API_KEY, HELIUS_RPC_URL, and SO
   });
   assert.equal(response.status, 200);
   const payload = await response.json();
-  assert.deepEqual(payload.services.sort(), ["composio", "e2b", "media", "tavily"]);
-  assert.equal(payload.services.includes("browseruse"), false);
-  assert.equal(payload.services.includes("helius"), false);
-  assert.equal(payload.services.includes("pump"), false);
+  assert.deepEqual(payload.services.sort(), ["browseruse", "composio", "e2b", "helius", "media", "pump", "tavily"]);
   assert.equal(solanaTrackerEndpoint({ SOLANA_TRACKER_RPC_URL: "dummy-SOLANA_TRACKER_RPC_URL" }), null);
 });
 
-test("Telegram Fly turn runner requires OPENROUTER_API_KEY even when SOLGPT_API_KEY is set", async () => {
+test("Telegram Fly turn runner accepts SOLGPT_API_KEY as the OpenRouter compatibility alias", async () => {
   const fly = await loadSource("source/services/telegram-fly/server.ts");
   const previous = {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
@@ -188,9 +173,9 @@ test("Telegram Fly turn runner requires OPENROUTER_API_KEY even when SOLGPT_API_
     assert.equal(fly.resolveHeadlessProvider({ SOLGPT_API_KEY: "dummy-solgpt" }), "openrouter");
     const runTurn = fly.createHeadlessTurnRunner({
       provider: "openrouter",
-      fetchImpl: async () => { throw new Error("should not fetch"); },
+      fetchImpl: async () => new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200, headers: { "content-type": "application/json" } }),
     });
-    await assert.rejects(runTurn("hi"), /OpenRouter needs OPENROUTER_API_KEY/);
+    assert.equal(await runTurn("hi"), "ok");
     const xaiTurn = fly.createHeadlessTurnRunner({
       provider: "xai",
       fetchImpl: async () => { throw new Error("should not fetch"); },
@@ -204,10 +189,10 @@ test("Telegram Fly turn runner requires OPENROUTER_API_KEY even when SOLGPT_API_
   }
 });
 
-test("Telegram bridge config treats HELIUS_RPC_URL as enough for Helius but SOLGPT_API_KEY is not OpenRouter", async () => {
+test("Telegram bridge config treats HELIUS_RPC_URL as Helius and SOLGPT_API_KEY as OpenRouter", async () => {
   const server = await loadSource("source/telegram-bridge-server/main.ts");
-  const fromLocalNames = server.resolveBridgeEnvConfig(dummyFromNames(envLocal));
-  assert.equal(fromLocalNames.openRouterConfigured, false);
+  const fromLocalNames = server.resolveBridgeEnvConfig(legacyEnv);
+  assert.equal(fromLocalNames.openRouterConfigured, true);
   assert.equal(fromLocalNames.heliusConfigured, true);
   assert.equal(fromLocalNames.deepgramConfigured, false);
   assert.equal(typeof fromLocalNames.token, "string");
@@ -280,7 +265,7 @@ test("PayBox stays disconnected without PAYBOX_SIGNING_KEY or PAYBOX_API_KEY", a
   assert.match(status.setup, /PAYBOX_SIGNING_KEY/);
 });
 
-test("named Clawd deploy recipes are legacy, incomplete, or host-blocked", () => {
+test("named Clawd deploy recipes are labeled and publish without private env files", () => {
   const compose = readFileSync(path.join(repoRoot, "clawd/deploy/docker-compose.yml"), "utf8");
   assert.match(compose, /^# LEGACY:/m);
   assert.match(compose, /ghcr\.io\/milind-soni\/openmausbot:latest/);
@@ -304,25 +289,12 @@ test("named Clawd deploy recipes are legacy, incomplete, or host-blocked", () =>
   assert.match(podmanCompose, /OMB_DATA_ROOT:\?Run setup\.sh first/);
   assert.match(podmanCompose, /PODMAN_SOCKET:\?Run setup\.sh first/);
   assert.match(podmanCompose, /app!=='clawdbot'/);
-  const deployEnv = envPresence(path.join(repoRoot, "clawd/deploy/.env"));
-  assert.equal(deployEnv.names.get("DOMAIN"), "set");
-  const domainLine = readFileSync(path.join(repoRoot, "clawd/deploy/.env"), "utf8")
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("DOMAIN="));
-  assert.equal(domainLine, "DOMAIN=maus.example.com");
   const caddy = readFileSync(path.join(repoRoot, "clawd/deploy/Caddyfile"), "utf8");
   assert.match(caddy, /\{\$DOMAIN\}/);
-  const openrouterEnv = path.join(repoRoot, "clawd/deploy/openrouter.env");
-  const runs = assignmentRuns(openrouterEnv);
-  assert.ok((runs.get("OPENROUTER_API_KEY") ?? []).length >= 3);
-  assert.ok((runs.get("COMPOSIO_API_KEY") ?? []).length >= 2);
-  const parsed = parseEnv(readFileSync(openrouterEnv, "utf8"));
-  const rawKeys = [...runs.entries()].filter(([, list]) => list.length > 1).map(([key]) => key);
-  assert.ok(rawKeys.includes("OPENROUTER_API_KEY"));
-  const firstOpenRouter = readFileSync(openrouterEnv, "utf8").split(/\r?\n/).filter((line) => /^OPENROUTER_API_KEY=/.test(line));
-  assert.equal(new Set(firstOpenRouter).size > 1, true, "OPENROUTER_API_KEY assignments conflict");
-  const firstComposio = readFileSync(openrouterEnv, "utf8").split(/\r?\n/).filter((line) => /^COMPOSIO_API_KEY=/.test(line));
-  assert.equal(new Set(firstComposio).size > 1, true, "COMPOSIO_API_KEY assignments conflict");
-  assert.equal(typeof parsed.OPENROUTER_API_KEY, "string");
+  assert.equal(existsSync(path.join(repoRoot, "clawd/deploy/.env")), false);
+  assert.equal(existsSync(path.join(repoRoot, "clawd/deploy/openrouter.env")), false);
+  const podmanExample = envPresence(path.join(repoRoot, "clawd/deploy/podman/.env.example"));
+  assert.equal(podmanExample.names.get("OMB_DATA_ROOT"), "set");
+  assert.equal(podmanExample.names.has("OPENROUTER_API_KEY"), false);
   assert.equal(ALIASES.SOLGPT_API_KEY, CANONICAL.OPENROUTER_API_KEY);
 });

@@ -23,12 +23,27 @@ const UPSTREAMS = {
   xai: { url: 'https://api.x.ai/v1/chat/completions', key: 'XAI_API_KEY' },
 };
 const hash = value => createHash('sha256').update(value).digest('hex');
+const first = (env, ...keys) => {
+  for (const key of keys) {
+    const value = env[key]?.trim();
+    if (value) return value;
+  }
+  return '';
+};
+function normalizeGatewayEnv(raw) {
+  const env = { ...raw };
+  if (!env.OPENROUTER_API_KEY?.trim() && env.SOLGPT_API_KEY?.trim()) env.OPENROUTER_API_KEY = env.SOLGPT_API_KEY;
+  if (!env.BROWSER_USE_API_KEY?.trim() && env.BROWSERUSE_API_KEY?.trim()) env.BROWSER_USE_API_KEY = env.BROWSERUSE_API_KEY;
+  if (!env.PUMP_MCP_TOKEN?.trim() && env.SOLGPT_PUMP_MCP_TOKEN?.trim()) env.PUMP_MCP_TOKEN = env.SOLGPT_PUMP_MCP_TOKEN;
+  return env;
+}
 const json = (res, status, body) => {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 };
 
 export function createGateway({ env = process.env, fetchImpl = fetch, now = Date.now, store: suppliedStore, desktopSdk } = {}) {
+  env = normalizeGatewayEnv(env);
   // Only digests go in the server registry; each user receives their own token.
   const users = JSON.parse(env.GATEWAY_USERS_JSON || '{}');
   const walletAccess = createWalletAccessVerifier(env, now);
@@ -112,7 +127,7 @@ export function createGateway({ env = process.env, fetchImpl = fetch, now = Date
       return forwardRuntime(req, res, user.runtimeApp, fetchImpl);
     }
     if (account) {
-      try { return json(res, 200, { id: user.id, models: user.models, services: (user.services ?? []).filter(service => (service === 'sandbox' && env.COMPOSIO_API_KEY?.trim() && user.services?.includes('composio')) || (service === 'pump' && env.PUMP_MCP_TOKEN?.trim()) || service === 'market' || (service === 'solana' && solanaTrackerEndpoint(env)) || (service === 'composio' && env.COMPOSIO_API_KEY?.trim()) || (service === 'tavily' && env.TAVILY_API_KEY?.trim()) || (service === 'birdeye' && env.BIRDEYE_API_KEY?.trim()) || (service === 'helius' && env.HELIUS_API_KEY?.trim()) || (service === 'browseruse' && env.BROWSER_USE_API_KEY?.trim()) || (service === 'e2b' && env.E2B_API_KEY?.trim()) || (service === 'media' && env.OPENROUTER_API_KEY?.trim())), dailyRequests: user.dailyRequests ?? 200, usage: store.usage(user.id, now()) }); }
+      try { return json(res, 200, { id: user.id, models: user.models, services: (user.services ?? []).filter(service => (service === 'sandbox' && env.COMPOSIO_API_KEY?.trim() && user.services?.includes('composio')) || (service === 'pump' && env.PUMP_MCP_TOKEN?.trim()) || service === 'market' || (service === 'solana' && solanaTrackerEndpoint(env)) || (service === 'composio' && env.COMPOSIO_API_KEY?.trim()) || (service === 'tavily' && env.TAVILY_API_KEY?.trim()) || (service === 'birdeye' && env.BIRDEYE_API_KEY?.trim()) || (service === 'helius' && first(env, 'HELIUS_RPC_URL', 'HELIUS_API_KEY')) || (service === 'browseruse' && env.BROWSER_USE_API_KEY?.trim()) || (service === 'e2b' && env.E2B_API_KEY?.trim()) || (service === 'media' && env.OPENROUTER_API_KEY?.trim())), dailyRequests: user.dailyRequests ?? 200, usage: store.usage(user.id, now()) }); }
       catch { return json(res, 503, { error: 'Account storage unavailable' }); }
     }
     if (pump && !user.services?.includes('pump')) return json(res, 403, { error: 'Service not enabled for this user' });
@@ -124,8 +139,9 @@ export function createGateway({ env = process.env, fetchImpl = fetch, now = Date
     if (browser && !user.services?.includes('browseruse')) return json(res, 403, { error: 'Service not enabled for this user' });
     if (desktop && !user.services?.includes('e2b')) return json(res, 403, { error: 'Service not enabled for this user' });
     if (media && !user.services?.includes('media')) return json(res, 403, { error: 'Service not enabled for this user' });
-    const provider = trackerRpc ? { url: solanaTrackerEndpoint(env), key: 'SOLANA_TRACKER_RPC_URL' } : pump ? {key:'PUMP_MCP_TOKEN'} : market ? {} : composio ? {key:'COMPOSIO_API_KEY'} : tavily ? {url:'https://api.tavily.com',key:'TAVILY_API_KEY'} : birdeye ? { url: 'https://public-api.birdeye.so', key: 'BIRDEYE_API_KEY' } : media ? { url: 'https://openrouter.ai/api/v1' + media[1], key: 'OPENROUTER_API_KEY' } : desktop ? { key: 'E2B_API_KEY' } : browser ? { url: 'https://api.browser-use.com/api/v4', key: 'BROWSER_USE_API_KEY' } : rpc ? { url: `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(env.HELIUS_API_KEY?.trim() || '')}`, key: 'HELIUS_API_KEY' } : UPSTREAMS[match[1]];
-    if (trackerRpc ? !provider.url : (!market && !env[provider.key]?.trim())) return json(res, 503, { error: 'Provider unavailable' });
+    const heliusRpcUrl = env.HELIUS_RPC_URL?.trim() || (env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(env.HELIUS_API_KEY.trim())}` : '');
+    const provider = trackerRpc ? { url: solanaTrackerEndpoint(env), key: 'SOLANA_TRACKER_RPC_URL' } : pump ? {key:'PUMP_MCP_TOKEN'} : market ? {} : composio ? {key:'COMPOSIO_API_KEY'} : tavily ? {url:'https://api.tavily.com',key:'TAVILY_API_KEY'} : birdeye ? { url: 'https://public-api.birdeye.so', key: 'BIRDEYE_API_KEY' } : media ? { url: 'https://openrouter.ai/api/v1' + media[1], key: 'OPENROUTER_API_KEY' } : desktop ? { key: 'E2B_API_KEY' } : browser ? { url: 'https://api.browser-use.com/api/v4', key: 'BROWSER_USE_API_KEY' } : rpc ? { url: heliusRpcUrl, key: 'HELIUS_API_KEY' } : UPSTREAMS[match[1]];
+    if (trackerRpc || rpc ? !provider.url : (!market && !env[provider.key]?.trim())) return json(res, 503, { error: 'Provider unavailable' });
     let bucket = buckets.get(user.id);
     if (!bucket) { bucket = { start: now(), count: 0, active: 0 }; buckets.set(user.id, bucket); }
     if (now() - bucket.start >= 60_000) { bucket.start = now(); bucket.count = 0; }

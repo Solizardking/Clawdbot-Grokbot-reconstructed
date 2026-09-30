@@ -33,6 +33,14 @@ function firstSecret(env: NodeJS.ProcessEnv, key: string): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function firstSecretOf(env: NodeJS.ProcessEnv, ...keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = firstSecret(env, key);
+    if (value != null) return value;
+  }
+  return null;
+}
+
 /** Normalizes the headless deployment configuration from raw process env. */
 export function resolveBridgeEnvConfig(env: NodeJS.ProcessEnv): TelegramBridgeEnvConfig {
   const port = env.PORT?.trim() ? Number(env.PORT) : NaN;
@@ -40,7 +48,7 @@ export function resolveBridgeEnvConfig(env: NodeJS.ProcessEnv): TelegramBridgeEn
     token: firstSecret(env, TELEGRAM_BOT_SECRET_KEY),
     deepgramConfigured: firstSecret(env, DEEPGRAM_SECRET_KEY) != null,
     heliusConfigured: firstSecret(env, "HELIUS_API_KEY") != null || firstSecret(env, "HELIUS_RPC_URL") != null,
-    openRouterConfigured: firstSecret(env, "OPENROUTER_API_KEY") != null,
+    openRouterConfigured: firstSecretOf(env, "OPENROUTER_API_KEY", "SOLGPT_API_KEY") != null,
     voiceGatewayUrl: normalizeSandVoiceGatewayUrl(env.SAND_VOICE_GATEWAY_URL) ?? null,
     autoStart: env.SAND_TELEGRAM_AUTOSTART !== "0",
     port: Number.isSafeInteger(port) && port >= 0 && port <= 65535 ? port : 8080,
@@ -62,6 +70,7 @@ export interface TelegramBridgeServer {
 
 export function createTelegramBridgeServer(options?: TelegramBridgeServerOptions): TelegramBridgeServer {
   const env = options?.env ?? process.env;
+  if (env.OPENROUTER_API_KEY == null && env.SOLGPT_API_KEY != null) env.OPENROUTER_API_KEY = env.SOLGPT_API_KEY;
   const fetchImpl = options?.fetchImpl ?? fetch;
   const config = resolveBridgeEnvConfig(env);
 

@@ -20,6 +20,9 @@ test('hop installer transfers actual files within command limits and verifies th
     const result = await loaded.module.installCloudHop(artifacts, async (name,args) => {
       if (name === 'e2b_computer_status') return {};
       assert.ok(args.command.length <= 16384);
+      if (args.command.includes("node-v26.5.0-linux")) {
+        return { exitCode: 0, stdout: `${process.execPath}\n` };
+      }
       const command = args.command.replaceAll('/home/user/sand-data',temporary);
       const { stdout } = await run('/bin/sh',['-c',command],{env:{...process.env,PATH:`${path.dirname(process.execPath)}:${process.env.PATH}`}});
       return { exitCode:0,stdout:stdout.replaceAll(temporary,'/home/user/sand-data') };

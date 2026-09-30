@@ -52,7 +52,8 @@ function persistedSecrets(): Record<string, string> {
 function openRouterCredential(): string {
   const hosted = hostedProviderConfig({ ...persistedSecrets(), ...process.env });
   if (hosted) return hosted.token;
-  const value = process.env.OPENROUTER_API_KEY?.trim() || persistedSecrets().OPENROUTER_API_KEY?.trim();
+  const secrets = persistedSecrets();
+  const value = process.env.OPENROUTER_API_KEY?.trim() || process.env.SOLGPT_API_KEY?.trim() || secrets.OPENROUTER_API_KEY?.trim() || secrets.SOLGPT_API_KEY?.trim();
   if (value == null || value.length === 0) throw new Error("OpenRouter needs OPENROUTER_API_KEY. Add it in Settings → Router.");
   return value;
 }
