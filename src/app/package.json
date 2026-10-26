@@ -67,7 +67,7 @@
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
     "@tiptap/suggestion": "^3.14.0",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.1",
     "cursor-proclist": "file:../vscode/native-modules/cursor-proclist",
     "emojibase-data": "17.0.0",
     "highlight.js": "^11.9.0",
