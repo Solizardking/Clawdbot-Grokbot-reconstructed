@@ -4,14 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260825.1",
     "@types/node": "^26.2.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.10",
-    "wrangler": "4.125.0"
+    "wrangler": "4.162.0"
   },
   "scripts": {
     "check": "npm run types && tsc -p tsconfig.json",
