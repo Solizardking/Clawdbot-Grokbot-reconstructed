@@ -83,10 +83,10 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math-extended": "^6.1.0",
-    "undici": "5.29.0",
+    "undici": "6.29.1",
     "ws": "8.20.0",
     "xlsx": "^0.18.5",
-    "zod": "^3.25.0"
+    "zod": "^4.6.7"
   },
   "sandTrack": "stable"
 }
